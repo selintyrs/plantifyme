@@ -1,2 +1,15 @@
-<h1>Welcome to SvelteKit</h1>
-<p>Visit <a href="https://svelte.dev/docs/kit">svelte.dev/docs/kit</a> to read the documentation</p>
+<div class="page">
+	<h1>Willkommen bei Plantify</h1>
+</div>
+
+<style>
+	.page {
+		padding: 24px 16px;
+	}
+
+	h1 {
+		font-size: 1.5rem;
+		font-weight: 700;
+		color: var(--color-text);
+	}
+</style>
