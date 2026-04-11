@@ -1,8 +1,14 @@
 <script>
 	import '../app.css';
 	import { page } from '$app/stores';
+	import { onMount } from 'svelte';
+	import { loadDictionary } from '$lib/stores/dictionary.js';
 
 	let { children } = $props();
+
+	onMount(() => {
+		loadDictionary();
+	});
 
 	const navItems = [
 		{
