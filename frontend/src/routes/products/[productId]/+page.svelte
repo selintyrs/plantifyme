@@ -1,5 +1,6 @@
 <script>
 	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 
 	let product = $state(null);
 	let genericFood = $state(null);
@@ -10,6 +11,10 @@
 	// 0 = try local file, 1 = try imageUrl from DB, 2 = show placeholder
 	let imgStage = $state(0);
 
+	let alternatives = $state(null);
+	let alternativesLoading = $state(false);
+	let altImgStages = $state({});
+
 	const tabs = [
 		{ id: 'produkt', label: 'Produkt' },
 		{ id: 'naehrwerte', label: 'Nährwerte' },
@@ -17,9 +22,17 @@
 		{ id: 'diy', label: 'DIY' }
 	];
 
+	const tabsAlt = [
+		{ id: 'produkt', label: 'Produkt' },
+		{ id: 'naehrwerte', label: 'Nährwerte' },
+		{ id: 'diy', label: 'DIY' }
+	];
+
 	const tabsC = [
 		{ id: 'naehrwerte', label: 'Nährwerte' }
 	];
+
+	let isFromAlternative = $derived($page.url.searchParams.get('from') === 'alternative');
 
 	$effect(() => {
 		const productId = $page.params.productId;
@@ -36,6 +49,8 @@
 		error = null;
 		imgStage = 0;
 		genericFood = null;
+		alternatives = null;
+		altImgStages = {};
 		activeTab = 'produkt';
 		try {
 			const res = await fetch(`/api/products/${productId}`);
@@ -84,6 +99,35 @@
 			imgStage = 1;
 		} else {
 			imgStage = 2;
+		}
+	}
+
+	async function loadAlternatives() {
+		if (alternatives !== null) return;
+		alternativesLoading = true;
+		try {
+			const res = await fetch(`/api/products/${$page.params.productId}/alternatives`);
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			alternatives = await res.json();
+		} catch (e) {
+			console.error('Alternativen laden fehlgeschlagen:', e);
+			alternatives = [];
+		} finally {
+			alternativesLoading = false;
+		}
+	}
+
+	function altLocalImageUrl(alt) {
+		const sm = alt.supermarket?.toLowerCase() ?? 'unknown';
+		return `/images/products/${sm}/${alt.articleId}.png`;
+	}
+
+	function handleAltImgError(altId, alt) {
+		const stage = altImgStages[altId] ?? 0;
+		if (stage === 0 && alt.imageUrl) {
+			altImgStages = { ...altImgStages, [altId]: 1 };
+		} else {
+			altImgStages = { ...altImgStages, [altId]: 2 };
 		}
 	}
 </script>
@@ -139,19 +183,26 @@
 			<p class="brand">{product.brand}</p>
 		{/if}
 		<h1 class="product-name">{product.name}</h1>
-		<p class="price">CHF {product.price?.toFixed(2)}</p>
+		<div class="price-row">
+			<p class="price">CHF {product.price?.toFixed(2)}</p>
+			{#if isFromAlternative}
+				<button class="btn-replace-main" onclick={() => console.log('Ersetzen:', $page.params.productId)}>
+					Ersetzen
+				</button>
+			{/if}
+		</div>
 	</div>
 
 	<!-- Tab bar (sticky, below info) -->
 	<div class="tab-bar-wrapper">
 		<div class="tab-bar" role="tablist">
-			{#each tabs as tab}
+			{#each (isFromAlternative ? tabsAlt : tabs) as tab}
 				<button
 					class="tab"
 					class:tab-active={activeTab === tab.id}
 					role="tab"
 					aria-selected={activeTab === tab.id}
-					onclick={() => { activeTab = tab.id; }}
+					onclick={() => { activeTab = tab.id; if (tab.id === 'alternativen') loadAlternatives(); }}
 				>
 					{tab.label}
 				</button>
@@ -227,9 +278,50 @@
 			</div>
 
 		{:else if activeTab === 'alternativen'}
-			<div class="tab-placeholder">
-				<p>Alternativen werden geladen...</p>
-			</div>
+			{#if alternativesLoading}
+				<div class="tab-placeholder">
+					<p>Alternativen werden geladen...</p>
+				</div>
+			{:else if alternatives !== null && alternatives.length === 0}
+				<div class="tab-placeholder tab-placeholder-center">
+					<p class="no-alternatives">Keine Alternativen gefunden</p>
+				</div>
+			{:else if alternatives}
+				<div class="alternatives-list">
+					{#each alternatives as alt, i (alt.id)}
+						{@const altStage = altImgStages[alt.id] ?? 0}
+						<div class="alt-card" class:alt-card-last={i === alternatives.length - 1}>
+							<div class="alt-img-wrapper">
+								{#if altStage < 2}
+									<img
+										src={altStage === 0 ? altLocalImageUrl(alt) : alt.imageUrl}
+										alt={alt.name}
+										class="alt-img"
+										onerror={() => handleAltImgError(alt.id, alt)}
+									/>
+								{:else}
+									<div class="alt-img-placeholder"></div>
+								{/if}
+							</div>
+							<div class="alt-info">
+								<span class="alt-name">{alt.name}</span>
+								{#if alt.brand}
+									<span class="alt-brand">{alt.brand}</span>
+								{/if}
+								<span class="alt-price">CHF {alt.price?.toFixed(2)}</span>
+							</div>
+							<div class="alt-actions">
+								<button class="btn-alt-info" onclick={() => goto(`/products/${alt.id}?from=alternative`)} aria-label="Details">
+									<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+								</button>
+								<button class="btn-replace" onclick={() => console.log('Ersetzen:', alt.id)}>
+									Ersetzen
+								</button>
+							</div>
+						</div>
+					{/each}
+				</div>
+			{/if}
 
 		{:else if activeTab === 'diy'}
 			<div class="tab-placeholder tab-placeholder-center">
@@ -415,10 +507,28 @@
 		line-height: 1.3;
 	}
 
+	.price-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+	}
+
 	.price {
 		font-size: 1.5rem;
 		font-weight: 700;
 		color: var(--color-primary);
+	}
+
+	.btn-replace-main {
+		padding: 10px 20px;
+		border-radius: 24px;
+		background: #2D7D46;
+		color: #ffffff;
+		font-size: 0.9375rem;
+		font-weight: 700;
+		white-space: nowrap;
+		flex-shrink: 0;
 	}
 
 	/* ── Tab bar ──────────────────────────────────────────────────────────── */
@@ -582,5 +692,111 @@
 		font-size: 0.8125rem;
 		color: var(--color-text-light);
 		margin-top: 12px;
+	}
+
+	/* ── Alternatives ─────────────────────────────────────────────────────── */
+	.no-alternatives {
+		font-size: 0.9375rem;
+		color: var(--color-text-light);
+	}
+
+	.alternatives-list {
+		padding: 0 16px;
+	}
+
+	.alt-card {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		padding: 14px 0;
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.alt-card-last {
+		border-bottom: none;
+	}
+
+	.alt-img-wrapper {
+		width: 60px;
+		height: 60px;
+		flex-shrink: 0;
+		border-radius: 12px;
+		overflow: hidden;
+		background: #F9FAFB;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.alt-img {
+		width: 100%;
+		height: 100%;
+		object-fit: contain;
+	}
+
+	.alt-img-placeholder {
+		width: 100%;
+		height: 100%;
+		background: #F3F4F6;
+	}
+
+	.alt-info {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+
+	.alt-name {
+		font-size: 0.9375rem;
+		font-weight: 700;
+		color: var(--color-text);
+		line-height: 1.3;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
+	}
+
+	.alt-brand {
+		font-size: 0.8125rem;
+		color: var(--color-text-light);
+	}
+
+	.alt-price {
+		font-size: 0.875rem;
+		font-weight: 700;
+		color: var(--color-primary);
+	}
+
+	.alt-actions {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		flex-shrink: 0;
+	}
+
+	.btn-alt-info {
+		width: 36px;
+		height: 36px;
+		border-radius: 50%;
+		background: #F3F4F6;
+		color: var(--color-text-light);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+	}
+
+	.btn-replace {
+		padding: 8px 16px;
+		border-radius: 20px;
+		background: var(--color-primary);
+		color: #ffffff;
+		font-size: 0.875rem;
+		font-weight: 600;
+		white-space: nowrap;
 	}
 </style>

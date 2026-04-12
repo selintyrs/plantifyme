@@ -114,7 +114,7 @@
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
 					items: buildRequestItems([item]),
-					supermarket: $supermarketStore,
+					supermarket: $supermarketStore === 'Coop' ? 'coop' : $supermarketStore === 'Aldi' ? 'aldi' : $supermarketStore,
 					preferences: { allergies: [], budget: "medium", diet: [] },
 				}),
 			});
