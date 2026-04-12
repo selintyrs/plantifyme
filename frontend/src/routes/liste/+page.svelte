@@ -6,10 +6,28 @@
 		removeItem,
 		updateQuantity
 	} from '$lib/stores/shoppingList.js';
+	import { supermarketStore, isReadyToMatch } from '$lib/stores/supermarket.js';
 
 	// ── Modal state ──────────────────────────────────────────────────────────
 	let modalOpen = $state(false);
 	let query = $state('');
+
+	// ── Supermarkt Modal ──────────────────────────────────────────────────────
+	let supermarketModalOpen = $state(false);
+	let supermarketDraft = $state('Migros');
+
+	const supermarkets = ['Migros', 'Coop', 'Aldi'];
+
+	function openSupermarketModal() {
+		supermarketDraft = $supermarketStore;
+		supermarketModalOpen = true;
+	}
+
+	function confirmSupermarket() {
+		supermarketStore.set(supermarketDraft);
+		isReadyToMatch.set(true);
+		supermarketModalOpen = false;
+	}
 
 	// ── Long-press / subcategory modal ────────────────────────────────────────
 	let subcatModal = $state(false);
@@ -170,6 +188,17 @@
 				</div>
 			{/each}
 		</div>
+
+		<!-- Plantify Me Button -->
+		{#if !$isReadyToMatch}
+			<button class="plantify-btn" onclick={openSupermarketModal}>
+				<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/>
+					<path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>
+				</svg>
+				Plantify Me
+			</button>
+		{/if}
 	{/if}
 
 	<!-- FAB -->
@@ -238,6 +267,35 @@
 				<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
 			{/if}
 		</button>
+	</div>
+{/if}
+
+<!-- ══════════════════════════════════════════ SUPERMARKT MODAL ══════ -->
+{#if supermarketModalOpen}
+	<div class="backdrop backdrop-blur" onclick={() => { supermarketModalOpen = false; }} role="presentation"></div>
+	<div class="supermarket-dialog" role="dialog" aria-modal="true">
+		<h2 class="sm-title">Supermarkt wählen</h2>
+		<p class="sm-sub">Wir suchen die besten veganen Alternativen für deinen Supermarkt</p>
+
+		<div class="sm-options">
+			{#each supermarkets as sm}
+				<button
+					class="sm-card"
+					class:sm-card-selected={supermarketDraft === sm}
+					onclick={() => { supermarketDraft = sm; }}
+				>
+					<span class="sm-name">{sm}</span>
+					<span class="sm-radio" class:sm-radio-checked={supermarketDraft === sm}>
+						{#if supermarketDraft === sm}
+							<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+						{/if}
+					</span>
+				</button>
+			{/each}
+		</div>
+
+		<button class="btn-primary" onclick={confirmSupermarket}>Weiter</button>
+		<button class="btn-text" onclick={() => { supermarketModalOpen = false; }}>Abbrechen</button>
 	</div>
 {/if}
 
@@ -636,5 +694,129 @@
 
 	.btn-primary:active {
 		background: var(--color-primary-hover);
+	}
+
+	/* ── Plantify Me Button ───────────────────────────────────────────────── */
+	.plantify-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 10px;
+		width: 100%;
+		margin-top: 28px;
+		padding: 16px;
+		border-radius: 16px;
+		background: var(--color-primary);
+		color: #fff;
+		font-size: 1.0625rem;
+		font-weight: 700;
+		box-shadow: 0 8px 30px rgba(45, 125, 70, 0.3);
+		transition: background 0.15s ease, box-shadow 0.15s ease;
+	}
+
+	.plantify-btn:active {
+		background: var(--color-primary-hover);
+		box-shadow: 0 4px 16px rgba(45, 125, 70, 0.3);
+	}
+
+	/* ── Supermarkt Modal ─────────────────────────────────────────────────── */
+	.backdrop-blur {
+		backdrop-filter: blur(4px);
+		background: rgba(0, 0, 0, 0.35);
+		z-index: 80;
+	}
+
+	.supermarket-dialog {
+		position: fixed;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		width: calc(100% - 48px);
+		max-width: 342px;
+		background: var(--color-bg);
+		border-radius: 24px;
+		padding: 32px 24px 24px;
+		z-index: 90;
+		box-shadow: 0 8px 40px rgba(0, 0, 0, 0.18);
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+	}
+
+	.sm-title {
+		font-size: 1.375rem;
+		font-weight: 700;
+		color: var(--color-text);
+		text-align: center;
+	}
+
+	.sm-sub {
+		font-size: 0.8125rem;
+		color: var(--color-text-light);
+		text-align: center;
+		line-height: 1.5;
+		margin-bottom: 4px;
+	}
+
+	.sm-options {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		margin: 4px 0;
+	}
+
+	.sm-card {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 14px 16px;
+		border-radius: 16px;
+		border: 1.5px solid var(--color-border);
+		background: var(--color-bg);
+		transition: border-color 0.12s ease, background 0.12s ease;
+		width: 100%;
+		text-align: left;
+	}
+
+	.sm-card-selected {
+		border-color: var(--color-primary);
+		background: var(--color-primary-light);
+	}
+
+	.sm-name {
+		font-size: 0.9375rem;
+		font-weight: 500;
+		color: var(--color-text);
+	}
+
+	.sm-radio {
+		width: 24px;
+		height: 24px;
+		border-radius: 50%;
+		border: 1.5px solid var(--color-border);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		color: var(--color-bg);
+		flex-shrink: 0;
+	}
+
+	.sm-radio-checked {
+		background: var(--color-primary);
+		border-color: var(--color-primary);
+	}
+
+	.btn-text {
+		background: none;
+		color: var(--color-text-light);
+		font-size: 0.9375rem;
+		font-weight: 500;
+		padding: 8px;
+		text-align: center;
+		width: 100%;
+	}
+
+	.btn-text:active {
+		color: var(--color-text);
 	}
 </style>
