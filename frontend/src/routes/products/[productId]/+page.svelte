@@ -205,8 +205,25 @@
 			{/if}
 
 		{:else if activeTab === 'naehrwerte'}
-			<div class="tab-placeholder">
-				<p>Nährwerte werden geladen...</p>
+			<div class="section">
+				<table class="nutrition-table">
+					<thead>
+						<tr>
+							<th>Nährwert</th>
+							<th>{['ml','l','cl'].includes(product.unit?.toLowerCase()) ? 'pro 100 ml' : 'pro 100 g'}</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr class="row-odd"><td>Energie</td><td>{product.energyKj ?? '–'} kJ / {product.energyKcal ?? '–'} kcal</td></tr>
+						<tr class="row-even"><td>Fett</td><td>{product.fatG ?? '–'} g</td></tr>
+						<tr class="row-odd"><td>davon gesättigte Fettsäuren</td><td>{product.saturatedFatG ?? '–'} g</td></tr>
+						<tr class="row-even"><td>Kohlenhydrate</td><td>{product.carbsG ?? '–'} g</td></tr>
+						<tr class="row-odd"><td>davon Zucker</td><td>{product.sugarG ?? '–'} g</td></tr>
+						<tr class="row-even"><td>Protein</td><td>{product.proteinG ?? '–'} g</td></tr>
+						<tr class="row-odd"><td>Salz</td><td>{product.saltG ?? '–'} g</td></tr>
+					</tbody>
+				</table>
+				<p class="per-unit-label">{['ml','l','cl'].includes(product.unit?.toLowerCase()) ? 'Pro 100ml' : 'Pro 100g'}</p>
 			</div>
 
 		{:else if activeTab === 'alternativen'}
@@ -275,13 +292,13 @@
 					</tr>
 				</thead>
 				<tbody>
-					<tr><td>Energie</td><td>{genericFood.nutrition?.kcalPer100g ?? '–'} kcal</td></tr>
-					<tr><td>Fett</td><td>{genericFood.nutrition?.fatPer100g ?? '–'} g</td></tr>
-					<tr><td>davon gesättigte Fettsäuren</td><td>{genericFood.nutrition?.saturatedFatPer100g ?? '–'} g</td></tr>
-					<tr><td>Kohlenhydrate</td><td>{genericFood.nutrition?.carbsPer100g ?? '–'} g</td></tr>
-					<tr><td>davon Zucker</td><td>{genericFood.nutrition?.sugarPer100g ?? '–'} g</td></tr>
-					<tr><td>Protein</td><td>{genericFood.nutrition?.proteinPer100g ?? '–'} g</td></tr>
-					<tr><td>Salz</td><td>{genericFood.nutrition?.saltPer100g ?? '–'} g</td></tr>
+					<tr class="row-odd"><td>Energie</td><td>{genericFood.kcalPer100g ?? '–'} kcal</td></tr>
+					<tr class="row-even"><td>Fett</td><td>{genericFood.fatPer100g ?? '–'} g</td></tr>
+					<tr class="row-odd"><td>davon gesättigte Fettsäuren</td><td>{genericFood.saturatedFatPer100g ?? '–'} g</td></tr>
+					<tr class="row-even"><td>Kohlenhydrate</td><td>{genericFood.carbsPer100g ?? '–'} g</td></tr>
+					<tr class="row-odd"><td>davon Zucker</td><td>{genericFood.sugarPer100g ?? '–'} g</td></tr>
+					<tr class="row-even"><td>Protein</td><td>{genericFood.proteinPer100g ?? '–'} g</td></tr>
+					<tr class="row-odd"><td>Salz</td><td>{genericFood.saltPer100g ?? '–'} g</td></tr>
 				</tbody>
 			</table>
 		</div>
@@ -550,5 +567,20 @@
 	.nutrition-table td:last-child {
 		text-align: right;
 		color: var(--color-text-light);
+	}
+
+	.nutrition-table .row-even td {
+		background: #ffffff;
+	}
+
+	.nutrition-table .row-odd td {
+		background: #f4f9f6;
+	}
+
+	.per-unit-label {
+		text-align: center;
+		font-size: 0.8125rem;
+		color: var(--color-text-light);
+		margin-top: 12px;
 	}
 </style>

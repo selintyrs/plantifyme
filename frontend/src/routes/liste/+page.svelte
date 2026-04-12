@@ -98,6 +98,7 @@
 					uiCategory: original?.uiCategory || 'Sonstiges'
 				};
 			}));
+			console.log('First C result:', raw.find(r => r.type === 'C'));
 			isVeganized.set(true);
 		} catch (e) {
 			console.error("Plantify match failed:", e);
