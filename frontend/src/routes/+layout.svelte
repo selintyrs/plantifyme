@@ -49,19 +49,21 @@
 		{@render children()}
 	</main>
 
-	<nav class="bottom-nav">
-		{#each navItems as item}
-			<a
-				href={item.href}
-				class="nav-item"
-				class:active={isActive(item.href, $page.url.pathname)}
-				aria-label={item.label}
-			>
-				{@html item.icon}
-				<span>{item.label}</span>
-			</a>
-		{/each}
-	</nav>
+	{#if !$page.url.pathname.startsWith('/products')}
+		<nav class="bottom-nav">
+			{#each navItems as item}
+				<a
+					href={item.href}
+					class="nav-item"
+					class:active={isActive(item.href, $page.url.pathname)}
+					aria-label={item.label}
+				>
+					{@html item.icon}
+					<span>{item.label}</span>
+				</a>
+			{/each}
+		</nav>
+	{/if}
 </div>
 
 <style>

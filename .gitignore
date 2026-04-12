@@ -34,3 +34,6 @@ build/
 
 ### SvelteKit build output ###
 src/main/resources/static/
+
+
+frontend/static/images/products/

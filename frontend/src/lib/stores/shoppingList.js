@@ -1,6 +1,8 @@
 import { writable, get } from 'svelte/store';
 
 export const shoppingListStore = writable([]);
+export const isVeganized = writable(false);
+export const matchResults = writable([]);
 
 let nextId = 1;
 

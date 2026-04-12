@@ -9,13 +9,14 @@
 		addItem,
 		removeItem,
 		updateQuantity,
+		isVeganized,
+		matchResults,
 	} from "$lib/stores/shoppingList.js";
 	import { supermarketStore } from "$lib/stores/supermarket.js";
+	import { goto } from "$app/navigation";
 
 	// ── Core state ────────────────────────────────────────────────────────────
-	let isVeganized = $state(false);
 	let isLoading = $state(false);
-	let matchResults = $state([]);
 
 	// ── Modal state ───────────────────────────────────────────────────────────
 	let modalOpen = $state(false);
@@ -48,7 +49,7 @@
 	);
 
 	let matchGrouped = $derived(
-		matchResults.reduce((acc, r) => {
+		$matchResults.reduce((acc, r) => {
 			const cat = r.uiCategory ?? "Sonstiges";
 			if (!acc[cat]) acc[cat] = [];
 			acc[cat].push(r);
@@ -89,15 +90,15 @@
 			if (!res.ok) throw new Error(`HTTP ${res.status}`);
 			const data = await res.json();
 			const raw = data.matches || [];
-matchResults = raw.map(r => {
-    const original = $shoppingListStore.find(i => i.id.toString() === r.itemId);
-    return {
-        ...r,
-        displayName: original?.displayName || r.originalName,
-        uiCategory: original?.uiCategory || 'Sonstiges'
-    };
-});
-			isVeganized = true;
+			matchResults.set(raw.map(r => {
+				const original = $shoppingListStore.find(i => i.id.toString() === r.itemId);
+				return {
+					...r,
+					displayName: original?.displayName || r.originalName,
+					uiCategory: original?.uiCategory || 'Sonstiges'
+				};
+			}));
+			isVeganized.set(true);
 		} catch (e) {
 			console.error("Plantify match failed:", e);
 		} finally {
@@ -128,7 +129,7 @@ if (matches.length > 0) {
             uiCategory: original?.uiCategory || 'Sonstiges'
         };
     });
-    matchResults = [...matchResults, ...enriched];
+    matchResults.update(prev => [...prev, ...enriched]);
 }
 		} catch (e) {
 			console.error("Single item match failed:", e);
@@ -164,15 +165,13 @@ if (matches.length > 0) {
 			);
 			items.forEach((i) => {
 				removeItem(i.id);
-				if (isVeganized) {
-					matchResults = matchResults.filter(
-						(r) => r.itemId !== i.id.toString(),
-					);
+				if ($isVeganized) {
+					matchResults.update(prev => prev.filter(r => r.itemId !== i.id.toString()));
 				}
 			});
 		} else {
 			addItem(entry, "");
-			if (isVeganized) {
+			if ($isVeganized) {
 				const added = $shoppingListStore.find(
 					(i) => i.frontendDictionaryId === entry.id,
 				);
@@ -199,7 +198,7 @@ if (matches.length > 0) {
 	async function confirmSubcat() {
 		if (subcatEntry) {
 			addItem(subcatEntry, subcatSelected);
-			if (isVeganized) {
+			if ($isVeganized) {
 				const added = $shoppingListStore.find(
 					(i) =>
 						i.frontendDictionaryId === subcatEntry.id &&
@@ -224,10 +223,8 @@ if (matches.length > 0) {
 
 	function confirmDelete(id) {
 		removeItem(id);
-		if (isVeganized) {
-			matchResults = matchResults.filter(
-				(r) => r.itemId !== id.toString(),
-			);
+		if ($isVeganized) {
+			matchResults.update(prev => prev.filter(r => r.itemId !== id.toString()));
 		}
 		pendingDeleteId = null;
 	}
@@ -268,7 +265,7 @@ if (matches.length > 0) {
 		<div class="header">
 			<div class="header-titles">
 				<h1>Einkaufsliste</h1>
-				{#if isVeganized}
+				{#if $isVeganized}
 					<span class="supermarket-badge">{$supermarketStore}</span>
 				{/if}
 			</div>
@@ -324,7 +321,7 @@ if (matches.length > 0) {
 			</div>
 
 			<!-- ── Veganized View ─────────────────────────────────────────────────── -->
-		{:else if isVeganized}
+		{:else if $isVeganized}
 			<div class="item-list">
 				{#each Object.entries(matchGrouped) as [category, results]}
 					<div class="category-section">
@@ -487,25 +484,30 @@ if (matches.length > 0) {
 												>
 											</button>
 										</div>
-										<button
-											class="chevron-btn"
-											aria-label="Details"
-										>
-											<svg
-												xmlns="http://www.w3.org/2000/svg"
-												width="18"
-												height="18"
-												viewBox="0 0 24 24"
-												fill="none"
-												stroke="currentColor"
-												stroke-width="2"
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												><polyline
-													points="9 18 15 12 9 6"
-												/></svg
+										{#if result.suggestedProduct || (result.type === 'C' && result.genericFood)}
+											<button
+												class="chevron-btn"
+												aria-label="Details"
+												onclick={() => result.type === 'C'
+													? goto(`/products/${result.genericFood.id}?type=C`)
+													: goto(`/products/${result.suggestedProduct.id}`)}
 											>
-										</button>
+												<svg
+													xmlns="http://www.w3.org/2000/svg"
+													width="18"
+													height="18"
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													stroke-width="2"
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													><polyline
+														points="9 18 15 12 9 6"
+													/></svg
+												>
+											</button>
+										{/if}
 									{/if}
 								</div>
 							</div>
@@ -727,7 +729,7 @@ if (matches.length > 0) {
 		{/if}
 
 		<!-- FAB — only when not veganized -->
-		{#if !isVeganized}
+		{#if !$isVeganized}
 			<button
 				class="fab"
 				onclick={openModal}
