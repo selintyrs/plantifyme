@@ -1,38 +1,35 @@
 <script>
-	import { dictionaryStore, searchDictionary, groupByCategory } from '$lib/stores/dictionary.js';
+	import {
+		dictionaryStore,
+		searchDictionary,
+		groupByCategory,
+	} from "$lib/stores/dictionary.js";
 	import {
 		shoppingListStore,
 		addItem,
 		removeItem,
-		updateQuantity
-	} from '$lib/stores/shoppingList.js';
-	import { supermarketStore, isReadyToMatch } from '$lib/stores/supermarket.js';
+		updateQuantity,
+	} from "$lib/stores/shoppingList.js";
+	import { supermarketStore } from "$lib/stores/supermarket.js";
 
-	// ── Modal state ──────────────────────────────────────────────────────────
+	// ── Core state ────────────────────────────────────────────────────────────
+	let isVeganized = $state(false);
+	let isLoading = $state(false);
+	let matchResults = $state([]);
+
+	// ── Modal state ───────────────────────────────────────────────────────────
 	let modalOpen = $state(false);
-	let query = $state('');
+	let query = $state("");
 
 	// ── Supermarkt Modal ──────────────────────────────────────────────────────
 	let supermarketModalOpen = $state(false);
-	let supermarketDraft = $state('Migros');
-
-	const supermarkets = ['Migros', 'Coop', 'Aldi'];
-
-	function openSupermarketModal() {
-		supermarketDraft = $supermarketStore;
-		supermarketModalOpen = true;
-	}
-
-	function confirmSupermarket() {
-		supermarketStore.set(supermarketDraft);
-		isReadyToMatch.set(true);
-		supermarketModalOpen = false;
-	}
+	let supermarketDraft = $state("Migros");
+	const supermarkets = ["Migros", "Coop", "Aldi"];
 
 	// ── Long-press / subcategory modal ────────────────────────────────────────
 	let subcatModal = $state(false);
 	let subcatEntry = $state(null);
-	let subcatSelected = $state('');
+	let subcatSelected = $state("");
 	let longPressTimer = null;
 
 	// ── Delete confirmation ───────────────────────────────────────────────────
@@ -41,45 +38,156 @@
 	// ── Derived ──────────────────────────────────────────────────────────────
 	let searchResults = $derived(searchDictionary(query, $dictionaryStore));
 	let grouped = $derived(groupByCategory(searchResults));
+
 	let listGrouped = $derived(
 		$shoppingListStore.reduce((acc, item) => {
 			if (!acc[item.uiCategory]) acc[item.uiCategory] = [];
 			acc[item.uiCategory].push(item);
 			return acc;
-		}, {})
+		}, {}),
+	);
+
+	let matchGrouped = $derived(
+		matchResults.reduce((acc, r) => {
+			const cat = r.uiCategory ?? "Sonstiges";
+			if (!acc[cat]) acc[cat] = [];
+			acc[cat].push(r);
+			return acc;
+		}, {}),
 	);
 
 	function isAdded(entry) {
-		return $shoppingListStore.some((i) => i.frontendDictionaryId === entry.id);
+		return $shoppingListStore.some(
+			(i) => i.frontendDictionaryId === entry.id,
+		);
 	}
 
-	// ── FAB / modal ───────────────────────────────────────────────────────────
+	// ── Plantify Match API ────────────────────────────────────────────────────
+	function buildRequestItems(items) {
+		return items.map((item) => ({
+			itemId: item.id.toString(),
+			displayName: item.displayName,
+			subcategory: item.subcategory || "",
+			type: item.type,
+			frontendDictionaryId: item.frontendDictionaryId,
+		}));
+	}
+
+	async function plantifyMatch() {
+		isLoading = true;
+		supermarketModalOpen = false;
+		try {
+			const res = await fetch("/api/plantify-match", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					items: buildRequestItems($shoppingListStore),
+					supermarket: $supermarketStore === 'Coop' ? 'coop' : $supermarketStore === 'Aldi' ? 'aldi' : $supermarketStore,
+					preferences: { allergies: [], budget: "medium", diet: [] },
+				}),
+			});
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			const data = await res.json();
+			const raw = data.matches || [];
+matchResults = raw.map(r => {
+    const original = $shoppingListStore.find(i => i.id.toString() === r.itemId);
+    return {
+        ...r,
+        displayName: original?.displayName || r.originalName,
+        uiCategory: original?.uiCategory || 'Sonstiges'
+    };
+});
+			isVeganized = true;
+		} catch (e) {
+			console.error("Plantify match failed:", e);
+		} finally {
+			isLoading = false;
+		}
+	}
+
+	async function matchSingleItem(item) {
+		try {
+			const res = await fetch("/api/plantify-match", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					items: buildRequestItems([item]),
+					supermarket: $supermarketStore,
+					preferences: { allergies: [], budget: "medium", diet: [] },
+				}),
+			});
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			const data = await res.json();
+			const matches = data.matches || [];
+if (matches.length > 0) {
+    const enriched = matches.map(r => {
+        const original = $shoppingListStore.find(i => i.id.toString() === r.itemId);
+        return {
+            ...r,
+            displayName: original?.displayName || r.originalName,
+            uiCategory: original?.uiCategory || 'Sonstiges'
+        };
+    });
+    matchResults = [...matchResults, ...enriched];
+}
+		} catch (e) {
+			console.error("Single item match failed:", e);
+		}
+	}
+
+	// ── Supermarkt Modal ──────────────────────────────────────────────────────
+	function openSupermarketModal() {
+		supermarketDraft = $supermarketStore;
+		supermarketModalOpen = true;
+	}
+
+	function confirmSupermarket() {
+		supermarketStore.set(supermarketDraft);
+		plantifyMatch();
+	}
+
+	// ── Add-Product Modal ─────────────────────────────────────────────────────
 	function openModal() {
 		modalOpen = true;
-		query = '';
+		query = "";
 	}
 
 	function closeModal() {
 		modalOpen = false;
-		query = '';
+		query = "";
 	}
 
-	function handleEntryTap(entry) {
-    if (isAdded(entry)) {
-        // Remove all items with this frontendDictionaryId
-        const items = $shoppingListStore.filter(i => i.frontendDictionaryId === entry.id);
-        items.forEach(i => removeItem(i.id));
-    } else {
-        addItem(entry, '');
-    }
-}
+	async function handleEntryTap(entry) {
+		if (isAdded(entry)) {
+			const items = $shoppingListStore.filter(
+				(i) => i.frontendDictionaryId === entry.id,
+			);
+			items.forEach((i) => {
+				removeItem(i.id);
+				if (isVeganized) {
+					matchResults = matchResults.filter(
+						(r) => r.itemId !== i.id.toString(),
+					);
+				}
+			});
+		} else {
+			addItem(entry, "");
+			if (isVeganized) {
+				const added = $shoppingListStore.find(
+					(i) => i.frontendDictionaryId === entry.id,
+				);
+				if (added) await matchSingleItem(added);
+			}
+		}
+	}
 
 	// ── Long press ────────────────────────────────────────────────────────────
 	function startLongPress(entry) {
-		if (!entry.additionalOptions || entry.additionalOptions.length === 0) return;
+		if (!entry.additionalOptions || entry.additionalOptions.length === 0)
+			return;
 		longPressTimer = setTimeout(() => {
 			subcatEntry = entry;
-			subcatSelected = '';
+			subcatSelected = "";
 			subcatModal = true;
 		}, 500);
 	}
@@ -88,13 +196,21 @@
 		clearTimeout(longPressTimer);
 	}
 
-	function confirmSubcat() {
+	async function confirmSubcat() {
 		if (subcatEntry) {
 			addItem(subcatEntry, subcatSelected);
+			if (isVeganized) {
+				const added = $shoppingListStore.find(
+					(i) =>
+						i.frontendDictionaryId === subcatEntry.id &&
+						i.subcategory === subcatSelected,
+				);
+				if (added) await matchSingleItem(added);
+			}
 		}
 		subcatModal = false;
 		subcatEntry = null;
-		subcatSelected = '';
+		subcatSelected = "";
 	}
 
 	// ── Quantity / delete ─────────────────────────────────────────────────────
@@ -108,112 +224,546 @@
 
 	function confirmDelete(id) {
 		removeItem(id);
+		if (isVeganized) {
+			matchResults = matchResults.filter(
+				(r) => r.itemId !== id.toString(),
+			);
+		}
 		pendingDeleteId = null;
 	}
 
 	function cancelDelete() {
 		pendingDeleteId = null;
 	}
+
+	// ── Quantity on match results ─────────────────────────────────────────────
+	function matchQuantityFor(itemId) {
+		const item = $shoppingListStore.find((i) => i.id.toString() === itemId);
+		return item ? item.quantity : 1;
+	}
+
+	function updateMatchQuantity(itemId, delta) {
+		const id = parseInt(itemId);
+		const item = $shoppingListStore.find((i) => i.id === id);
+		if (!item) return;
+		if (item.quantity + delta < 1) {
+			pendingDeleteId = id;
+		} else {
+			updateQuantity(id, delta);
+		}
+	}
 </script>
 
-<!-- ═══════════════════════════════════════════════════════ MAIN PAGE ══════ -->
-<div class="page">
-	<!-- Header -->
-	<div class="header">
-		<h1>Einkaufsliste</h1>
-		<button class="icon-btn" aria-label="Gespeicherte Listen">
-			<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-				<path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>
-			</svg>
-		</button>
+<!-- ════════════════════════════════════════════════════ LOADING SCREEN ══════ -->
+{#if isLoading}
+	<div class="loading-screen">
+		<div class="spinner"></div>
+		<p class="loading-text">Deine Liste wird veganisiert…</p>
 	</div>
 
-	<!-- Empty state -->
-	{#if $shoppingListStore.length === 0}
-		<div class="empty-state">
-			<div class="empty-icon">
-				<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-					<circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/>
-					<path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/>
-				</svg>
+	<!-- ═══════════════════════════════════════════════════════ MAIN PAGE ══════ -->
+{:else}
+	<div class="page">
+		<!-- Header -->
+		<div class="header">
+			<div class="header-titles">
+				<h1>Einkaufsliste</h1>
+				{#if isVeganized}
+					<span class="supermarket-badge">{$supermarketStore}</span>
+				{/if}
 			</div>
-			<p class="empty-title">Deine Liste ist noch leer</p>
-			<p class="empty-sub">Füge Produkte hinzu oder wähle eine deiner gespeicherten Listen.</p>
+			<button class="icon-btn" aria-label="Gespeicherte Listen">
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="24"
+					height="24"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
+					<path
+						d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"
+					/>
+				</svg>
+			</button>
 		</div>
-	{:else}
-		<!-- Item list grouped by category -->
-		<div class="item-list">
-			{#each Object.entries(listGrouped) as [category, items]}
-				<div class="category-section">
-					<div class="category-header">
-						<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-							<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/>
-							<path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>
-						</svg>
-						<span>{category}</span>
-					</div>
 
-					{#each items as item (item.id)}
-						<div class="item-row">
-							<div class="item-info">
-								<span class="item-name">{item.displayName}</span>
-								{#if item.subcategory}
-									<span class="item-subcat">{item.subcategory}</span>
+		<!-- Empty state -->
+		{#if $shoppingListStore.length === 0}
+			<div class="empty-state">
+				<div class="empty-icon">
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						width="48"
+						height="48"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.5"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					>
+						<circle cx="8" cy="21" r="1" /><circle
+							cx="19"
+							cy="21"
+							r="1"
+						/>
+						<path
+							d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"
+						/>
+					</svg>
+				</div>
+				<p class="empty-title">Deine Liste ist noch leer</p>
+				<p class="empty-sub">
+					Füge Produkte hinzu oder wähle eine deiner gespeicherten
+					Listen.
+				</p>
+			</div>
+
+			<!-- ── Veganized View ─────────────────────────────────────────────────── -->
+		{:else if isVeganized}
+			<div class="item-list">
+				{#each Object.entries(matchGrouped) as [category, results]}
+					<div class="category-section">
+						<div class="category-header">
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								width="14"
+								height="14"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+							>
+								<path
+									d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"
+								/>
+								<path
+									d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"
+								/>
+							</svg>
+							<span>{category}</span>
+						</div>
+
+						{#each results as result (result.itemId)}
+							{@const qty = matchQuantityFor(result.itemId)}
+							{@const itemId = parseInt(result.itemId)}
+							<div class="item-row">
+								<!-- Checkbox placeholder -->
+								<div class="item-left">
+									<span class="checkbox-circle"></span>
+									<div class="item-info">
+										{#if result.type === "C"}
+											<span class="item-name"
+												>{result.displayName}</span
+											>
+										{:else if result.suggestedProduct}
+											<span class="item-name"
+												>{result.suggestedProduct
+													.name}</span
+											>
+											<span class="item-plantified"
+												>Plantified {result.displayName}</span
+											>
+										{:else}
+											<span class="item-name"
+												>{result.displayName}</span
+											>
+											<span class="item-no-match"
+												>Keine Alternative gefunden</span
+											>
+										{/if}
+									</div>
+								</div>
+
+								<div class="item-right">
+									{#if pendingDeleteId === itemId}
+										<div class="delete-confirm">
+											<span class="delete-label"
+												>Löschen?</span
+											>
+											<button
+												class="btn-confirm"
+												onclick={() =>
+													confirmDelete(itemId)}
+												>Ja</button
+											>
+											<button
+												class="btn-cancel"
+												onclick={cancelDelete}
+												>Nein</button
+											>
+										</div>
+									{:else}
+										<div class="quantity-ctrl">
+											<button
+												class="qty-btn"
+												aria-label="Weniger"
+												onclick={() =>
+													updateMatchQuantity(
+														result.itemId,
+														-1,
+													)}
+											>
+												{#if qty === 1}
+													<svg
+														xmlns="http://www.w3.org/2000/svg"
+														width="16"
+														height="16"
+														viewBox="0 0 24 24"
+														fill="none"
+														stroke="currentColor"
+														stroke-width="2"
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														><polyline
+															points="3 6 5 6 21 6"
+														/><path
+															d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"
+														/><path
+															d="M10 11v6"
+														/><path
+															d="M14 11v6"
+														/><path
+															d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"
+														/></svg
+													>
+												{:else}
+													<svg
+														xmlns="http://www.w3.org/2000/svg"
+														width="16"
+														height="16"
+														viewBox="0 0 24 24"
+														fill="none"
+														stroke="currentColor"
+														stroke-width="2"
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														><line
+															x1="5"
+															y1="12"
+															x2="19"
+															y2="12"
+														/></svg
+													>
+												{/if}
+											</button>
+											<span class="qty-num">{qty}</span>
+											<button
+												class="qty-btn"
+												aria-label="Mehr"
+												onclick={() =>
+													updateMatchQuantity(
+														result.itemId,
+														1,
+													)}
+											>
+												<svg
+													xmlns="http://www.w3.org/2000/svg"
+													width="16"
+													height="16"
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													stroke-width="2"
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													><line
+														x1="12"
+														y1="5"
+														x2="12"
+														y2="19"
+													/><line
+														x1="5"
+														y1="12"
+														x2="19"
+														y2="12"
+													/></svg
+												>
+											</button>
+										</div>
+										<button
+											class="chevron-btn"
+											aria-label="Details"
+										>
+											<svg
+												xmlns="http://www.w3.org/2000/svg"
+												width="18"
+												height="18"
+												viewBox="0 0 24 24"
+												fill="none"
+												stroke="currentColor"
+												stroke-width="2"
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												><polyline
+													points="9 18 15 12 9 6"
+												/></svg
+											>
+										</button>
+									{/if}
+								</div>
+							</div>
+						{/each}
+					</div>
+				{/each}
+			</div>
+
+			<!-- Bottom action row -->
+			<div class="veganized-actions">
+				<button class="btn-save">
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						width="18"
+						height="18"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					>
+						<path
+							d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"
+						/>
+					</svg>
+					Liste speichern
+				</button>
+				<button
+					class="btn-add-round"
+					onclick={openModal}
+					aria-label="Produkt hinzufügen"
+				>
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						width="22"
+						height="22"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2.5"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						><line x1="12" y1="5" x2="12" y2="19" /><line
+							x1="5"
+							y1="12"
+							x2="19"
+							y2="12"
+						/></svg
+					>
+				</button>
+			</div>
+
+			<!-- ── Normal (pre-match) View ────────────────────────────────────────── -->
+		{:else}
+			<div class="item-list">
+				{#each Object.entries(listGrouped) as [category, items]}
+					<div class="category-section">
+						<div class="category-header">
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								width="14"
+								height="14"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+							>
+								<path
+									d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"
+								/>
+								<path
+									d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"
+								/>
+							</svg>
+							<span>{category}</span>
+						</div>
+
+						{#each items as item (item.id)}
+							<div class="item-row">
+								<div class="item-info">
+									<span class="item-name"
+										>{item.displayName}</span
+									>
+									{#if item.subcategory}
+										<span class="item-subcat"
+											>{item.subcategory}</span
+										>
+									{/if}
+								</div>
+
+								{#if pendingDeleteId === item.id}
+									<div class="delete-confirm">
+										<span class="delete-label"
+											>Löschen?</span
+										>
+										<button
+											class="btn-confirm"
+											onclick={() =>
+												confirmDelete(item.id)}
+											>Ja</button
+										>
+										<button
+											class="btn-cancel"
+											onclick={cancelDelete}>Nein</button
+										>
+									</div>
+								{:else}
+									<div class="quantity-ctrl">
+										<button
+											class="qty-btn"
+											aria-label="Weniger"
+											onclick={() => handleMinus(item)}
+										>
+											{#if item.quantity === 1}
+												<svg
+													xmlns="http://www.w3.org/2000/svg"
+													width="16"
+													height="16"
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													stroke-width="2"
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													><polyline
+														points="3 6 5 6 21 6"
+													/><path
+														d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"
+													/><path d="M10 11v6" /><path
+														d="M14 11v6"
+													/><path
+														d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"
+													/></svg
+												>
+											{:else}
+												<svg
+													xmlns="http://www.w3.org/2000/svg"
+													width="16"
+													height="16"
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													stroke-width="2"
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													><line
+														x1="5"
+														y1="12"
+														x2="19"
+														y2="12"
+													/></svg
+												>
+											{/if}
+										</button>
+										<span class="qty-num"
+											>{item.quantity}</span
+										>
+										<button
+											class="qty-btn"
+											aria-label="Mehr"
+											onclick={() =>
+												updateQuantity(item.id, 1)}
+										>
+											<svg
+												xmlns="http://www.w3.org/2000/svg"
+												width="16"
+												height="16"
+												viewBox="0 0 24 24"
+												fill="none"
+												stroke="currentColor"
+												stroke-width="2"
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												><line
+													x1="12"
+													y1="5"
+													x2="12"
+													y2="19"
+												/><line
+													x1="5"
+													y1="12"
+													x2="19"
+													y2="12"
+												/></svg
+											>
+										</button>
+									</div>
 								{/if}
 							</div>
+						{/each}
+					</div>
+				{/each}
+			</div>
 
-							{#if pendingDeleteId === item.id}
-								<div class="delete-confirm">
-									<span class="delete-label">Löschen?</span>
-									<button class="btn-confirm" onclick={() => confirmDelete(item.id)}>Ja</button>
-									<button class="btn-cancel" onclick={cancelDelete}>Nein</button>
-								</div>
-							{:else}
-								<div class="quantity-ctrl">
-									<button class="qty-btn" aria-label="Weniger" onclick={() => handleMinus(item)}>
-										{#if item.quantity === 1}
-											<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-										{:else}
-											<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
-										{/if}
-									</button>
-									<span class="qty-num">{item.quantity}</span>
-									<button class="qty-btn" aria-label="Mehr" onclick={() => updateQuantity(item.id, 1)}>
-										<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-									</button>
-								</div>
-							{/if}
-						</div>
-					{/each}
-				</div>
-			{/each}
-		</div>
-
-		<!-- Plantify Me Button -->
-		{#if !$isReadyToMatch}
 			<button class="plantify-btn" onclick={openSupermarketModal}>
-				<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-					<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/>
-					<path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="20"
+					height="20"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
+					<path
+						d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"
+					/>
+					<path
+						d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"
+					/>
 				</svg>
 				Plantify Me
 			</button>
 		{/if}
-	{/if}
 
-	<!-- FAB -->
-	<button class="fab" onclick={openModal} aria-label="Produkt hinzufügen">
-		<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-	</button>
-</div>
+		<!-- FAB — only when not veganized -->
+		{#if !isVeganized}
+			<button
+				class="fab"
+				onclick={openModal}
+				aria-label="Produkt hinzufügen"
+			>
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="28"
+					height="28"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2.5"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					><line x1="12" y1="5" x2="12" y2="19" /><line
+						x1="5"
+						y1="12"
+						x2="19"
+						y2="12"
+					/></svg
+				>
+			</button>
+		{/if}
+	</div>
+{/if}
 
 <!-- ═════════════════════════════════════════════════ ADD-PRODUCT MODAL ══════ -->
 {#if modalOpen}
-	<!-- Backdrop -->
 	<div class="backdrop" onclick={closeModal} role="presentation"></div>
-
-	<!-- Bottom sheet -->
-	<div class="sheet" role="dialog" aria-modal="true" aria-label="Produkt hinzufügen">
+	<div
+		class="sheet"
+		role="dialog"
+		aria-modal="true"
+		aria-label="Produkt hinzufügen"
+	>
 		<div class="drag-handle"></div>
 		<div class="sheet-header">
 			<h2>Produkt hinzufügen</h2>
@@ -248,9 +798,43 @@
 							<span class="entry-name">{entry.displayName}</span>
 							<span class="entry-action">
 								{#if added}
-									<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										width="18"
+										height="18"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										stroke-width="2.5"
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										><polyline
+											points="20 6 9 17 4 12"
+										/></svg
+									>
 								{:else}
-									<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										width="18"
+										height="18"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										stroke-width="2.5"
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										><line
+											x1="12"
+											y1="5"
+											x2="12"
+											y2="19"
+										/><line
+											x1="5"
+											y1="12"
+											x2="19"
+											y2="12"
+										/></svg
+									>
 								{/if}
 							</span>
 						</button>
@@ -259,12 +843,38 @@
 			{/each}
 		</div>
 
-		<!-- Close / confirm FAB inside modal -->
 		<button class="sheet-fab" onclick={closeModal} aria-label="Schliessen">
 			{#if $shoppingListStore.length > 0}
-				<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="26"
+					height="26"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2.5"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					><polyline points="20 6 9 17 4 12" /></svg
+				>
 			{:else}
-				<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="26"
+					height="26"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2.5"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					><line x1="18" y1="6" x2="6" y2="18" /><line
+						x1="6"
+						y1="6"
+						x2="18"
+						y2="18"
+					/></svg
+				>
 			{/if}
 		</button>
 	</div>
@@ -272,22 +882,46 @@
 
 <!-- ══════════════════════════════════════════ SUPERMARKT MODAL ══════ -->
 {#if supermarketModalOpen}
-	<div class="backdrop backdrop-blur" onclick={() => { supermarketModalOpen = false; }} role="presentation"></div>
+	<div
+		class="backdrop backdrop-blur"
+		onclick={() => {
+			supermarketModalOpen = false;
+		}}
+		role="presentation"
+	></div>
 	<div class="supermarket-dialog" role="dialog" aria-modal="true">
 		<h2 class="sm-title">Supermarkt wählen</h2>
-		<p class="sm-sub">Wir suchen die besten veganen Alternativen für deinen Supermarkt</p>
+		<p class="sm-sub">
+			Wir suchen die besten veganen Alternativen für deinen Supermarkt
+		</p>
 
 		<div class="sm-options">
 			{#each supermarkets as sm}
 				<button
 					class="sm-card"
 					class:sm-card-selected={supermarketDraft === sm}
-					onclick={() => { supermarketDraft = sm; }}
+					onclick={() => {
+						supermarketDraft = sm;
+					}}
 				>
 					<span class="sm-name">{sm}</span>
-					<span class="sm-radio" class:sm-radio-checked={supermarketDraft === sm}>
+					<span
+						class="sm-radio"
+						class:sm-radio-checked={supermarketDraft === sm}
+					>
 						{#if supermarketDraft === sm}
-							<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								width="18"
+								height="18"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2.5"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								><polyline points="20 6 9 17 4 12" /></svg
+							>
 						{/if}
 					</span>
 				</button>
@@ -295,13 +929,24 @@
 		</div>
 
 		<button class="btn-primary" onclick={confirmSupermarket}>Weiter</button>
-		<button class="btn-text" onclick={() => { supermarketModalOpen = false; }}>Abbrechen</button>
+		<button
+			class="btn-text"
+			onclick={() => {
+				supermarketModalOpen = false;
+			}}>Abbrechen</button
+		>
 	</div>
 {/if}
 
 <!-- ══════════════════════════════════════════════ SUBCATEGORY MODAL ══════ -->
 {#if subcatModal && subcatEntry}
-	<div class="backdrop backdrop-top" onclick={() => { subcatModal = false; }} role="presentation"></div>
+	<div
+		class="backdrop backdrop-top"
+		onclick={() => {
+			subcatModal = false;
+		}}
+		role="presentation"
+	></div>
 	<div class="subcat-dialog" role="dialog" aria-modal="true">
 		<h3>{subcatEntry.displayName} spezifizieren</h3>
 		<div class="subcat-options">
@@ -309,7 +954,9 @@
 				<button
 					class="subcat-btn"
 					class:subcat-selected={subcatSelected === opt.optionName}
-					onclick={() => { subcatSelected = opt.optionName; }}
+					onclick={() => {
+						subcatSelected = opt.optionName;
+					}}
 				>
 					{opt.optionName}
 				</button>
@@ -320,6 +967,38 @@
 {/if}
 
 <style>
+	/* ── Loading screen ───────────────────────────────────────────────────── */
+	.loading-screen {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		min-height: 100dvh;
+		gap: 20px;
+		background: var(--color-bg);
+	}
+
+	.spinner {
+		width: 48px;
+		height: 48px;
+		border-radius: 50%;
+		border: 4px solid var(--color-primary-light);
+		border-top-color: var(--color-primary);
+		animation: spin 0.8s linear infinite;
+	}
+
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+
+	.loading-text {
+		font-size: 1rem;
+		font-weight: 500;
+		color: var(--color-text-light);
+	}
+
 	/* ── Page ─────────────────────────────────────────────────────────────── */
 	.page {
 		padding: 24px 16px 100px;
@@ -329,14 +1008,28 @@
 	.header {
 		display: flex;
 		justify-content: space-between;
-		align-items: center;
+		align-items: flex-start;
 		margin-bottom: 24px;
+	}
+
+	.header-titles {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
 	}
 
 	h1 {
 		font-size: 1.875rem;
 		font-weight: 700;
 		color: var(--color-text);
+	}
+
+	.supermarket-badge {
+		font-size: 0.75rem;
+		font-weight: 700;
+		color: var(--color-primary);
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
 	}
 
 	.icon-btn {
@@ -357,7 +1050,7 @@
 	}
 
 	.empty-icon {
-		color: #D1D5DB;
+		color: #d1d5db;
 		margin-bottom: 8px;
 	}
 
@@ -405,18 +1098,54 @@
 		justify-content: space-between;
 		padding: 12px 4px;
 		border-bottom: 1px solid var(--color-border);
+		gap: 8px;
+	}
+
+	/* Veganized item layout */
+	.item-left {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		flex: 1;
+		min-width: 0;
+	}
+
+	.item-right {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		flex-shrink: 0;
+	}
+
+	.checkbox-circle {
+		width: 22px;
+		height: 22px;
+		border-radius: 50%;
+		border: 1.5px solid var(--color-border);
+		flex-shrink: 0;
+	}
+
+	.chevron-btn {
+		color: #d1d5db;
+		display: flex;
+		align-items: center;
+		padding: 2px;
 	}
 
 	.item-info {
 		display: flex;
 		flex-direction: column;
 		gap: 2px;
+		min-width: 0;
 	}
 
 	.item-name {
 		font-size: 0.9375rem;
 		font-weight: 500;
 		color: var(--color-text);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
 	.item-subcat {
@@ -424,6 +1153,18 @@
 		color: var(--color-primary);
 	}
 
+	.item-plantified {
+		font-size: 0.75rem;
+		color: var(--color-primary);
+		font-weight: 500;
+	}
+
+	.item-no-match {
+		font-size: 0.75rem;
+		color: #ef4444;
+	}
+
+	/* ── Quantity controls ────────────────────────────────────────────────── */
 	.quantity-ctrl {
 		display: flex;
 		align-items: center;
@@ -450,6 +1191,7 @@
 		color: var(--color-text);
 	}
 
+	/* ── Delete confirm ───────────────────────────────────────────────────── */
 	.delete-confirm {
 		display: flex;
 		align-items: center;
@@ -464,7 +1206,7 @@
 	.btn-confirm {
 		padding: 4px 10px;
 		border-radius: 6px;
-		background: #EF4444;
+		background: #ef4444;
 		color: #fff;
 		font-size: 0.8125rem;
 		font-weight: 600;
@@ -477,6 +1219,72 @@
 		color: var(--color-text);
 		font-size: 0.8125rem;
 		font-weight: 600;
+	}
+
+	/* ── Plantify Me Button ───────────────────────────────────────────────── */
+	.plantify-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 10px;
+		width: 100%;
+		margin-top: 28px;
+		padding: 16px;
+		border-radius: 16px;
+		background: var(--color-primary);
+		color: #fff;
+		font-size: 1.0625rem;
+		font-weight: 700;
+		box-shadow: 0 8px 30px rgba(45, 125, 70, 0.3);
+		transition:
+			background 0.15s ease,
+			box-shadow 0.15s ease;
+	}
+
+	.plantify-btn:active {
+		background: var(--color-primary-hover);
+		box-shadow: 0 4px 16px rgba(45, 125, 70, 0.3);
+	}
+
+	/* ── Veganized actions row ────────────────────────────────────────────── */
+	.veganized-actions {
+		display: flex;
+		gap: 12px;
+		align-items: center;
+		margin-top: 28px;
+	}
+
+	.btn-save {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
+		padding: 14px 16px;
+		border-radius: 14px;
+		border: 1.5px solid var(--color-primary);
+		color: var(--color-primary);
+		font-size: 0.9375rem;
+		font-weight: 600;
+		background: var(--color-bg);
+		transition: background 0.12s ease;
+	}
+
+	.btn-save:active {
+		background: var(--color-primary-light);
+	}
+
+	.btn-add-round {
+		width: 52px;
+		height: 52px;
+		border-radius: 50%;
+		background: var(--color-primary);
+		color: #fff;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		box-shadow: 0 4px 12px rgba(45, 125, 70, 0.35);
 	}
 
 	/* ── FAB ──────────────────────────────────────────────────────────────── */
@@ -508,6 +1316,12 @@
 		z-index: 80;
 	}
 
+	.backdrop-blur {
+		backdrop-filter: blur(4px);
+		background: rgba(0, 0, 0, 0.35);
+		z-index: 80;
+	}
+
 	/* ── Bottom sheet ─────────────────────────────────────────────────────── */
 	.sheet {
 		position: fixed;
@@ -528,7 +1342,7 @@
 	.drag-handle {
 		width: 40px;
 		height: 4px;
-		background: #D1D5DB;
+		background: #d1d5db;
 		border-radius: 2px;
 		margin: 12px auto 0;
 		flex-shrink: 0;
@@ -546,7 +1360,7 @@
 	}
 
 	.sheet-search {
-		padding: 8px 16px 8px;
+		padding: 8px 16px;
 		flex-shrink: 0;
 	}
 
@@ -602,7 +1416,6 @@
 	.entry-row:active {
 		background: var(--color-primary-light);
 	}
-
 	.entry-added {
 		background: var(--color-primary-light);
 	}
@@ -633,99 +1446,7 @@
 		box-shadow: 0 4px 12px rgba(45, 125, 70, 0.4);
 	}
 
-	/* ── Subcategory dialog ───────────────────────────────────────────────── */
-	.subcat-dialog {
-		position: fixed;
-		top: 50%;
-		left: 50%;
-		transform: translate(-50%, -50%);
-		width: calc(100% - 48px);
-		max-width: 340px;
-		background: var(--color-bg);
-		border-radius: 16px;
-		padding: 24px;
-		z-index: 90;
-		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.16);
-		display: flex;
-		flex-direction: column;
-		gap: 16px;
-	}
-
-	.subcat-dialog h3 {
-		font-size: 1rem;
-		font-weight: 700;
-		color: var(--color-text);
-	}
-
-	.subcat-options {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 8px;
-	}
-
-	.subcat-btn {
-		padding: 8px 16px;
-		border-radius: 20px;
-		border: 1.5px solid var(--color-border);
-		font-size: 0.875rem;
-		color: var(--color-text);
-		background: var(--color-bg);
-		transition: all 0.12s ease;
-	}
-
-	.subcat-selected {
-		border-color: var(--color-primary);
-		background: var(--color-primary-light);
-		color: var(--color-primary);
-		font-weight: 600;
-	}
-
-	.btn-primary {
-		padding: 12px;
-		border-radius: 10px;
-		background: var(--color-primary);
-		color: #fff;
-		font-size: 0.9375rem;
-		font-weight: 600;
-		width: 100%;
-		text-align: center;
-		transition: background 0.15s ease;
-	}
-
-	.btn-primary:active {
-		background: var(--color-primary-hover);
-	}
-
-	/* ── Plantify Me Button ───────────────────────────────────────────────── */
-	.plantify-btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 10px;
-		width: 100%;
-		margin-top: 28px;
-		padding: 16px;
-		border-radius: 16px;
-		background: var(--color-primary);
-		color: #fff;
-		font-size: 1.0625rem;
-		font-weight: 700;
-		box-shadow: 0 8px 30px rgba(45, 125, 70, 0.3);
-		transition: background 0.15s ease, box-shadow 0.15s ease;
-	}
-
-	.plantify-btn:active {
-		background: var(--color-primary-hover);
-		box-shadow: 0 4px 16px rgba(45, 125, 70, 0.3);
-	}
-
-	/* ── Supermarkt Modal ─────────────────────────────────────────────────── */
-	.backdrop-blur {
-		backdrop-filter: blur(4px);
-		background: rgba(0, 0, 0, 0.35);
-		z-index: 80;
-	}
-
+	/* ── Supermarkt dialog ────────────────────────────────────────────────── */
 	.supermarket-dialog {
 		position: fixed;
 		top: 50%;
@@ -773,7 +1494,9 @@
 		border-radius: 16px;
 		border: 1.5px solid var(--color-border);
 		background: var(--color-bg);
-		transition: border-color 0.12s ease, background 0.12s ease;
+		transition:
+			border-color 0.12s ease,
+			background 0.12s ease;
 		width: 100%;
 		text-align: left;
 	}
@@ -806,6 +1529,22 @@
 		border-color: var(--color-primary);
 	}
 
+	.btn-primary {
+		padding: 12px;
+		border-radius: 10px;
+		background: var(--color-primary);
+		color: #fff;
+		font-size: 0.9375rem;
+		font-weight: 600;
+		width: 100%;
+		text-align: center;
+		transition: background 0.15s ease;
+	}
+
+	.btn-primary:active {
+		background: var(--color-primary-hover);
+	}
+
 	.btn-text {
 		background: none;
 		color: var(--color-text-light);
@@ -818,5 +1557,52 @@
 
 	.btn-text:active {
 		color: var(--color-text);
+	}
+
+	/* ── Subcategory dialog ───────────────────────────────────────────────── */
+	.subcat-dialog {
+		position: fixed;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		width: calc(100% - 48px);
+		max-width: 340px;
+		background: var(--color-bg);
+		border-radius: 16px;
+		padding: 24px;
+		z-index: 90;
+		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.16);
+		display: flex;
+		flex-direction: column;
+		gap: 16px;
+	}
+
+	.subcat-dialog h3 {
+		font-size: 1rem;
+		font-weight: 700;
+		color: var(--color-text);
+	}
+
+	.subcat-options {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+	}
+
+	.subcat-btn {
+		padding: 8px 16px;
+		border-radius: 20px;
+		border: 1.5px solid var(--color-border);
+		font-size: 0.875rem;
+		color: var(--color-text);
+		background: var(--color-bg);
+		transition: all 0.12s ease;
+	}
+
+	.subcat-selected {
+		border-color: var(--color-primary);
+		background: var(--color-primary-light);
+		color: var(--color-primary);
+		font-weight: 600;
 	}
 </style>
