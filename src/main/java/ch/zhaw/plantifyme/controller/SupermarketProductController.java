@@ -33,7 +33,7 @@ public class SupermarketProductController {
     @GetMapping("/products/{productId}/alternatives")
     public ResponseEntity<List<SupermarketProduct>> getAlternatives(
             @PathVariable String productId,
-            @RequestParam(defaultValue = "cheaper") String filter) {
+            @RequestParam(defaultValue = "") String filter) {
         return supermarketProductService.getAlternatives(productId, filter)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());

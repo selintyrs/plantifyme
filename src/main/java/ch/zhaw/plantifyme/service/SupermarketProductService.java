@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Predicate;
 
 @Service
 public class SupermarketProductService {
@@ -29,23 +30,45 @@ public class SupermarketProductService {
                         productId
                 );
 
-        Comparator<SupermarketProduct> comparator = switch (filter) {
-            case "healthier" -> Comparator.comparingDouble(
-                    p -> p.getProteinG() != null ? -p.getProteinG() : 0.0
-            );
-            case "eco" -> Comparator.comparingDouble(
-                    p -> p.getImpactCo2SavedPct() != null ? -p.getImpactCo2SavedPct() : 0.0
-            );
-            default -> Comparator.comparingDouble(
-                    p -> p.getPrice() != null ? p.getPrice() : Double.MAX_VALUE
-            );
-        };
+        Predicate<SupermarketProduct> filterPredicate;
+        Comparator<SupermarketProduct> comparator;
 
-        return Optional.of(
-                alternatives.stream()
-                        .sorted(comparator)
-                        .limit(4)
-                        .toList()
-        );
+        if (filter == null || filter.isBlank() || filter.equals("default")) {
+            filterPredicate = p -> true;
+            comparator = Comparator.comparing(SupermarketProduct::getPrice, Comparator.nullsLast(Comparator.naturalOrder()));
+        } else switch (filter) {
+            case "cheaper" -> {
+                filterPredicate = p -> p.getPrice() != null
+                        && product.getPrice() != null
+                        && p.getPrice() < product.getPrice();
+                comparator = Comparator.comparing(SupermarketProduct::getPrice, Comparator.nullsLast(Comparator.naturalOrder()));
+            }
+            case "healthier" -> {
+                filterPredicate = p -> p.getProteinG() != null
+                        && product.getProteinG() != null
+                        && p.getProteinG() > product.getProteinG();
+                comparator = Comparator.comparing(SupermarketProduct::getProteinG, Comparator.nullsLast(Comparator.reverseOrder()));
+            }
+            case "lowcal" -> {
+                filterPredicate = p -> p.getEnergyKcal() != null
+                        && product.getEnergyKcal() != null
+                        && p.getEnergyKcal() < product.getEnergyKcal();
+                comparator = Comparator.comparing(SupermarketProduct::getEnergyKcal, Comparator.nullsLast(Comparator.naturalOrder()));
+            }
+            default -> {
+                filterPredicate = p -> true;
+                comparator = Comparator.comparing(SupermarketProduct::getPrice, Comparator.nullsLast(Comparator.naturalOrder()));
+            }
+        }
+
+        List<SupermarketProduct> result = alternatives.stream()
+                .filter(filterPredicate)
+                .sorted(comparator)
+                .limit(4)
+                .toList();
+
+        
+
+        return Optional.of(result);
     }
 }

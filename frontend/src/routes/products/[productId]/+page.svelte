@@ -1,6 +1,7 @@
 <script>
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
+	import { matchResults } from '$lib/stores/shoppingList.js';
 
 	let product = $state(null);
 	let genericFood = $state(null);
@@ -14,6 +15,16 @@
 	let alternatives = $state(null);
 	let alternativesLoading = $state(false);
 	let altImgStages = $state({});
+	let activeFilter = $state(null);
+	let replacedProductName = $state(null);
+
+	const filters = [
+		{ id: 'cheaper',   label: 'Günstiger' },
+		{ id: 'healthier', label: 'Mehr Protein' },
+		{ id: 'lowcal',    label: 'Weniger Kalorien' }
+	];
+
+	let replacingId = $derived($page.url.searchParams.get('replacing'));
 
 	const tabs = [
 		{ id: 'produkt', label: 'Produkt' },
@@ -51,6 +62,7 @@
 		genericFood = null;
 		alternatives = null;
 		altImgStages = {};
+		activeFilter = null;
 		activeTab = 'produkt';
 		try {
 			const res = await fetch(`/api/products/${productId}`);
@@ -102,19 +114,46 @@
 		}
 	}
 
-	async function loadAlternatives() {
-		if (alternatives !== null) return;
+	async function loadAlternatives(filter = null) {
 		alternativesLoading = true;
+		alternatives = null;
 		try {
-			const res = await fetch(`/api/products/${$page.params.productId}/alternatives`);
+			const url = filter
+				? `/api/products/${$page.params.productId}/alternatives?filter=${filter}`
+				: `/api/products/${$page.params.productId}/alternatives`;
+			const res = await fetch(url);
 			if (!res.ok) throw new Error(`HTTP ${res.status}`);
 			alternatives = await res.json();
+			altImgStages = {};
 		} catch (e) {
 			console.error('Alternativen laden fehlgeschlagen:', e);
 			alternatives = [];
 		} finally {
 			alternativesLoading = false;
 		}
+	}
+
+	async function toggleFilter(filterId) {
+		if (activeFilter === filterId) {
+			activeFilter = null;
+			await loadAlternatives(null);
+		} else {
+			activeFilter = filterId;
+			await loadAlternatives(filterId);
+		}
+	}
+
+	function replaceProduct(newProduct) {
+		const targetId = replacingId ?? $page.params.productId;
+		matchResults.update(prev =>
+			prev.map(r =>
+				r.suggestedProduct?.id === targetId
+					? { ...r, suggestedProduct: newProduct }
+					: r
+			)
+		);
+		replacedProductName = newProduct.name;
+		setTimeout(() => goto('/liste'), 1500);
 	}
 
 	function altLocalImageUrl(alt) {
@@ -186,7 +225,7 @@
 		<div class="price-row">
 			<p class="price">CHF {product.price?.toFixed(2)}</p>
 			{#if isFromAlternative}
-				<button class="btn-replace-main" onclick={() => console.log('Ersetzen:', $page.params.productId)}>
+				<button class="btn-replace-main" onclick={() => replaceProduct(product)}>
 					Ersetzen
 				</button>
 			{/if}
@@ -202,7 +241,7 @@
 					class:tab-active={activeTab === tab.id}
 					role="tab"
 					aria-selected={activeTab === tab.id}
-					onclick={() => { activeTab = tab.id; if (tab.id === 'alternativen') loadAlternatives(); }}
+					onclick={() => { activeTab = tab.id; if (tab.id === 'alternativen' && alternatives === null) loadAlternatives(); }}
 				>
 					{tab.label}
 				</button>
@@ -278,6 +317,17 @@
 			</div>
 
 		{:else if activeTab === 'alternativen'}
+			<div class="filter-bar">
+				{#each filters as f}
+					<button
+						class="filter-pill"
+						class:filter-pill-active={activeFilter === f.id}
+						onclick={() => toggleFilter(f.id)}
+					>
+						{f.label}
+					</button>
+				{/each}
+			</div>
 			{#if alternativesLoading}
 				<div class="tab-placeholder">
 					<p>Alternativen werden geladen...</p>
@@ -311,10 +361,14 @@
 								<span class="alt-price">CHF {alt.price?.toFixed(2)}</span>
 							</div>
 							<div class="alt-actions">
-								<button class="btn-alt-info" onclick={() => goto(`/products/${alt.id}?from=alternative`)} aria-label="Details">
+								<button
+									class="btn-alt-info"
+									onclick={() => goto(`/products/${alt.id}?from=alternative&replacing=${$page.params.productId}`)}
+									aria-label="Details"
+								>
 									<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
 								</button>
-								<button class="btn-replace" onclick={() => console.log('Ersetzen:', alt.id)}>
+								<button class="btn-replace" onclick={() => replaceProduct(alt)}>
 									Ersetzen
 								</button>
 							</div>
@@ -393,6 +447,21 @@
 					<tr class="row-odd"><td>Salz</td><td>{genericFood.saltPer100g ?? '–'} g</td></tr>
 				</tbody>
 			</table>
+		</div>
+	</div>
+{/if}
+
+<!-- ── Replace confirmation modal ────────────────────────────────────────── -->
+{#if replacedProductName}
+	<div class="replace-backdrop">
+		<div class="replace-modal">
+			<div class="replace-check">
+				<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+					<polyline points="20 6 9 17 4 12"/>
+				</svg>
+			</div>
+			<p class="replace-title">Produkt wurde ersetzt</p>
+			<p class="replace-name">{replacedProductName}</p>
 		</div>
 	</div>
 {/if}
@@ -695,6 +764,34 @@
 	}
 
 	/* ── Alternatives ─────────────────────────────────────────────────────── */
+	.filter-bar {
+		display: flex;
+		gap: 8px;
+		overflow-x: auto;
+		scrollbar-width: none;
+		padding: 12px 16px;
+	}
+
+	.filter-bar::-webkit-scrollbar { display: none; }
+
+	.filter-pill {
+		flex-shrink: 0;
+		padding: 7px 16px;
+		border-radius: 20px;
+		font-size: 0.875rem;
+		font-weight: 500;
+		border: 1.5px solid var(--color-border);
+		background: #ffffff;
+		color: var(--color-text);
+		transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+	}
+
+	.filter-pill-active {
+		background: #2D7D46;
+		color: #ffffff;
+		border-color: #2D7D46;
+	}
+
 	.no-alternatives {
 		font-size: 0.9375rem;
 		color: var(--color-text-light);
@@ -798,5 +895,53 @@
 		font-size: 0.875rem;
 		font-weight: 600;
 		white-space: nowrap;
+	}
+
+	/* ── Replace confirmation modal ───────────────────────────────────────── */
+	.replace-backdrop {
+		position: fixed;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.35);
+		z-index: 100;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.replace-modal {
+		background: var(--color-bg);
+		border-radius: 20px;
+		padding: 32px 28px;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 12px;
+		width: min(320px, 85vw);
+		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+	}
+
+	.replace-check {
+		width: 56px;
+		height: 56px;
+		border-radius: 50%;
+		background: var(--color-primary);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+	}
+
+	.replace-title {
+		font-size: 1rem;
+		font-weight: 700;
+		color: var(--color-text);
+		text-align: center;
+	}
+
+	.replace-name {
+		font-size: 0.875rem;
+		color: var(--color-text-light);
+		text-align: center;
+		line-height: 1.4;
 	}
 </style>
