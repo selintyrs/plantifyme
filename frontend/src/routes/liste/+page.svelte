@@ -57,6 +57,84 @@
 		}, {}),
 	);
 
+	let impactData = $derived(computeImpact($matchResults, $shoppingListStore));
+
+	function computeImpact(matchResults, shoppingList) {
+		const animals = { cow: 0, pig: 0, chicken: 0, fish: 0 };
+		let totalCo2 = 0, co2PctSum = 0, co2Count = 0;
+		let totalWater = 0, waterPctSum = 0, waterCount = 0;
+		let totalLand = 0, landPctSum = 0, landCount = 0;
+
+		for (const r of matchResults) {
+			if (r.type === 'C' || !r.suggestedProduct) continue;
+			const p = r.suggestedProduct;
+			const qty = shoppingList.find(i => i.id.toString() === r.itemId)?.quantity ?? 1;
+
+			if (p.animalType && p.animalsAffectedPerUnit != null) {
+				animals[p.animalType] = (animals[p.animalType] ?? 0) + p.animalsAffectedPerUnit * qty;
+			}
+			if (p.impactCo2SavedKg != null) {
+				totalCo2 += p.impactCo2SavedKg * qty;
+				if (p.impactCo2SavedPct != null) { co2PctSum += p.impactCo2SavedPct; co2Count++; }
+			}
+			if (p.impactWaterSavedL != null) {
+				totalWater += p.impactWaterSavedL * qty;
+				if (p.impactWaterSavedPct != null) { waterPctSum += p.impactWaterSavedPct; waterCount++; }
+			}
+			if (p.impactLandSavedM2 != null) {
+				totalLand += p.impactLandSavedM2 * qty;
+				if (p.impactLandSavedPct != null) { landPctSum += p.impactLandSavedPct; landCount++; }
+			}
+		}
+
+		let co2Compare;
+		if (totalCo2 > 20) {
+			co2Compare = `Das entspricht ${(totalCo2 / 0.2630).toFixed(1)} km Flug`;
+		} else {
+			const co2Km = (totalCo2 / 0.1873).toFixed(1);
+			co2Compare = `Das entspricht ${co2Km} km Autofahrt`;
+		}
+
+		let waterCompare;
+		const waterBadewannen = (totalWater / 200).toFixed(1);
+		if (totalWater >= 60 && waterBadewannen !== '0.0') {
+			waterCompare = `Das entspricht ${waterBadewannen} vollen Badewannen`;
+		} else {
+			waterCompare = `Das entspricht ${(totalWater / 12).toFixed(1)} Minuten duschen`;
+		}
+
+		let landCompare;
+		if (totalLand > 500) {
+			const fussball = (totalLand / 7140).toFixed(1);
+			if (fussball !== '0.0') {
+				landCompare = `Das entspricht ${fussball} Fussballfeldern`;
+			} else {
+				landCompare = `Das entspricht ${(totalLand / 195.7).toFixed(1)} Tennisplätzen`;
+			}
+		} else if (totalLand >= 25) {
+			const tennis = (totalLand / 195.7).toFixed(1);
+			if (tennis !== '0.0') {
+				landCompare = `Das entspricht ${tennis} Tennisplätzen`;
+			} else {
+				landCompare = `Das entspricht ${(totalLand / 12.5).toFixed(1)} Parkplätzen`;
+			}
+		} else {
+			landCompare = `Das entspricht ${(totalLand / 12.5).toFixed(1)} Parkplätzen`;
+		}
+
+		return {
+			animals: {
+				cow: Math.ceil(animals.cow),
+				pig: Math.ceil(animals.pig),
+				chicken: Math.ceil(animals.chicken),
+				fish: Math.ceil(animals.fish),
+			},
+			co2:   { total: totalCo2,   pct: co2Count   ? Math.round(co2PctSum   / co2Count)   : 0, compare: co2Compare },
+			water: { total: totalWater, pct: waterCount ? Math.round(waterPctSum / waterCount) : 0, compare: waterCompare },
+			land:  { total: totalLand,  pct: landCount  ? Math.round(landPctSum  / landCount)  : 0, compare: landCompare },
+		};
+	}
+
 	function isAdded(entry) {
 		return $shoppingListStore.some(
 			(i) => i.frontendDictionaryId === entry.id,
@@ -560,6 +638,85 @@ if (matches.length > 0) {
 						/></svg
 					>
 				</button>
+			</div>
+
+			<!-- Impact section -->
+			<div class="impact-section">
+				<div class="impact-header">
+					<h2 class="impact-title">Dein Impact</h2>
+					<p class="impact-sub">Wenn du deine plantified Einkaufsliste verwendest</p>
+				</div>
+
+				<!-- Tierwohl -->
+				<div class="impact-card">
+					<p class="impact-card-label">Anzahl Tiere die dank dir nicht leiden müssen</p>
+					<div class="animal-row">
+						{#if impactData.animals.cow > 0}
+							<div class="animal-col">
+								<img src="/images/icons/cow.png" alt="Kuh" width="44" height="44" />
+								<span class="animal-count">{impactData.animals.cow}</span>
+								<span class="animal-label">Kühe</span>
+							</div>
+						{/if}
+						{#if impactData.animals.pig > 0}
+							<div class="animal-col">
+								<img src="/images/icons/pig.png" alt="Schwein" width="44" height="44" />
+								<span class="animal-count">{impactData.animals.pig}</span>
+								<span class="animal-label">Schweine</span>
+							</div>
+						{/if}
+						{#if impactData.animals.chicken > 0}
+							<div class="animal-col">
+								<img src="/images/icons/chicken.png" alt="Huhn" width="44" height="44" />
+								<span class="animal-count">{impactData.animals.chicken}</span>
+								<span class="animal-label">Hühner</span>
+							</div>
+						{/if}
+						{#if impactData.animals.fish > 0}
+							<div class="animal-col">
+								<img src="/images/icons/fish.png" alt="Fisch" width="44" height="44" />
+								<span class="animal-count">{impactData.animals.fish}</span>
+								<span class="animal-label">Fische</span>
+							</div>
+						{/if}
+					</div>
+				</div>
+
+				<!-- CO₂ -->
+				<div class="impact-card impact-card-white">
+					<div class="impact-card-inner">
+						<div class="impact-icon-wrap">
+							<img src="/images/icons/co2.png" alt="CO₂" width="40" height="40" />
+						</div>
+						<p class="impact-card-text">So viel CO₂ sparst du durch diese Einkaufsliste</p>
+					</div>
+					<p class="impact-pct">{impactData.co2.pct}%</p>
+					<p class="impact-compare">{impactData.co2.compare}</p>
+				</div>
+
+				<!-- Wasser -->
+				<div class="impact-card impact-card-white">
+					<div class="impact-card-inner">
+						<div class="impact-icon-wrap">
+							<img src="/images/icons/water.png" alt="Wasser" width="40" height="40" />
+						</div>
+						<p class="impact-card-text">So viel Wasser sparst du durch diese Einkaufsliste</p>
+					</div>
+					<p class="impact-pct">{impactData.water.pct}%</p>
+					<p class="impact-compare">{impactData.water.compare}</p>
+				</div>
+
+				<!-- Land -->
+				<div class="impact-card impact-card-white">
+					<div class="impact-card-inner">
+						<div class="impact-icon-wrap">
+							<img src="/images/icons/land.png" alt="Land" width="40" height="40" />
+						</div>
+						<p class="impact-card-text">So viel Land sparst du durch diese Einkaufsliste</p>
+					</div>
+					<p class="impact-pct">{impactData.land.pct}%</p>
+					<p class="impact-compare">{impactData.land.compare}</p>
+				</div>
 			</div>
 
 			<!-- ── Normal (pre-match) View ────────────────────────────────────────── -->
@@ -1607,5 +1764,114 @@ if (matches.length > 0) {
 		background: var(--color-primary-light);
 		color: var(--color-primary);
 		font-weight: 600;
+	}
+
+	/* ── Impact section ───────────────────────────────────────────────────── */
+	.impact-section {
+		padding: 40px 16px 32px;
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+	}
+
+	.impact-header {
+		margin-bottom: 4px;
+	}
+
+	.impact-title {
+		font-size: 1.5rem;
+		font-weight: 700;
+		color: var(--color-text);
+	}
+
+	.impact-sub {
+		font-size: 0.875rem;
+		color: var(--color-text-light);
+		margin-top: 4px;
+		line-height: 1.4;
+	}
+
+	.impact-card {
+		border-radius: 16px;
+		padding: 16px;
+		background: #ffffff;
+		box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07);
+	}
+
+	.impact-card-white {
+		background: #ffffff;
+		box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07);
+	}
+
+	.impact-card-label {
+		font-size: 0.9375rem;
+		font-weight: 700;
+		color: var(--color-primary);
+		margin-bottom: 16px;
+		line-height: 1.4;
+	}
+
+	.animal-row {
+		display: flex;
+		justify-content: space-around;
+	}
+
+	.animal-col {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 4px;
+	}
+
+	.animal-count {
+		font-size: 2rem;
+		font-weight: 800;
+		color: var(--color-primary);
+		line-height: 1;
+	}
+
+	.animal-label {
+		font-size: 0.75rem;
+		color: var(--color-primary);
+	}
+
+	.impact-card-inner {
+		display: flex;
+		align-items: flex-start;
+		gap: 12px;
+		margin-bottom: 12px;
+	}
+
+	.impact-icon-wrap {
+		width: 40px;
+		height: 40px;
+		border-radius: 12px;
+		background: transparent;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+	}
+
+	.impact-card-text {
+		font-size: 0.875rem;
+		color: var(--color-text-light);
+		line-height: 1.4;
+		padding-top: 2px;
+	}
+
+	.impact-pct {
+		font-size: 3rem;
+		font-weight: 800;
+		color: var(--color-primary);
+		line-height: 1;
+		margin-bottom: 6px;
+	}
+
+	.impact-compare {
+		font-size: 1rem;
+		font-weight: 600;
+		color: var(--color-text);
+		line-height: 1.4;
 	}
 </style>
