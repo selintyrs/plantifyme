@@ -18,6 +18,12 @@
 	// ── Core state ────────────────────────────────────────────────────────────
 	let isLoading = $state(false);
 
+	// ── Save list modal ───────────────────────────────────────────────────────
+	let saveModalOpen = $state(false);
+	let saveListName = $state('');
+	let isSaved = $state(false);
+	let saveToastVisible = $state(false);
+
 	// ── Modal state ───────────────────────────────────────────────────────────
 	let modalOpen = $state(false);
 	let query = $state("");
@@ -176,8 +182,8 @@
 					uiCategory: original?.uiCategory || 'Sonstiges'
 				};
 			}));
-			console.log('First C result:', raw.find(r => r.type === 'C'));
 			isVeganized.set(true);
+			isSaved = false;
 		} catch (e) {
 			console.error("Plantify match failed:", e);
 		} finally {
@@ -238,6 +244,7 @@ if (matches.length > 0) {
 	}
 
 	async function handleEntryTap(entry) {
+		isSaved = false;
 		if (isAdded(entry)) {
 			const items = $shoppingListStore.filter(
 				(i) => i.frontendDictionaryId === entry.id,
@@ -306,6 +313,7 @@ if (matches.length > 0) {
 			matchResults.update(prev => prev.filter(r => r.itemId !== id.toString()));
 		}
 		pendingDeleteId = null;
+		isSaved = false;
 	}
 
 	function cancelDelete() {
@@ -326,6 +334,60 @@ if (matches.length > 0) {
 			pendingDeleteId = id;
 		} else {
 			updateQuantity(id, delta);
+		}
+	}
+
+	// ── Save list ─────────────────────────────────────────────────────────────
+	function focusOnMount(node) {
+		node.focus();
+	}
+
+	function openSaveModal() {
+		const now = new Date();
+		const dd = String(now.getDate()).padStart(2, '0');
+		const mm = String(now.getMonth() + 1).padStart(2, '0');
+		const yyyy = now.getFullYear();
+		saveListName = `Einkaufsliste vom ${dd}.${mm}.${yyyy}`;
+		saveModalOpen = true;
+	}
+
+	function buildSaveItems() {
+		return $matchResults.map(r => {
+			const listItem = $shoppingListStore.find(i => i.id.toString() === r.itemId);
+			const qty = listItem?.quantity ?? 1;
+			const isTypeC = r.type === 'C';
+			return {
+				itemId: crypto.randomUUID(),
+				productId: !isTypeC && r.suggestedProduct ? r.suggestedProduct.id : null,
+				genericFoodId: isTypeC && r.genericFood ? r.genericFood.id : null,
+				type: r.type,
+				name: !isTypeC && r.suggestedProduct ? r.suggestedProduct.name : r.displayName,
+				price: !isTypeC && r.suggestedProduct ? r.suggestedProduct.price : null,
+				quantity: qty,
+				isChecked: false,
+			};
+		});
+	}
+
+	async function saveList() {
+		try {
+			const res = await fetch('/api/shoppinglists', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					userId: 'temp-user',
+					name: saveListName,
+					supermarket: $supermarketStore,
+					items: buildSaveItems(),
+				}),
+			});
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			saveModalOpen = false;
+			isSaved = true;
+			saveToastVisible = true;
+			setTimeout(() => { saveToastVisible = false; }, 1500);
+		} catch (e) {
+			console.error('Liste speichern fehlgeschlagen:', e);
 		}
 	}
 </script>
@@ -597,7 +659,12 @@ if (matches.length > 0) {
 
 			<!-- Bottom action row -->
 			<div class="veganized-actions">
-				<button class="btn-save">
+				<button
+					class="btn-save"
+					class:btn-save-done={isSaved}
+					onclick={isSaved ? null : openSaveModal}
+					disabled={isSaved}
+				>
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
 						width="18"
@@ -609,11 +676,13 @@ if (matches.length > 0) {
 						stroke-linecap="round"
 						stroke-linejoin="round"
 					>
-						<path
-							d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"
-						/>
+						{#if isSaved}
+							<polyline points="20 6 9 17 4 12"/>
+						{:else}
+							<path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>
+						{/if}
 					</svg>
-					Liste speichern
+					{isSaved ? 'Gespeichert' : 'Liste speichern'}
 				</button>
 				<button
 					class="btn-add-round"
@@ -1123,6 +1192,35 @@ if (matches.length > 0) {
 			{/each}
 		</div>
 		<button class="btn-primary" onclick={confirmSubcat}>Hinzufügen</button>
+	</div>
+{/if}
+
+<!-- ══════════════════════════════════════════════════ SAVE LIST MODAL ══════ -->
+{#if saveModalOpen}
+	<div class="backdrop backdrop-blur" onclick={() => { saveModalOpen = false; }} role="presentation"></div>
+	<div class="supermarket-dialog" role="dialog" aria-modal="true">
+		<h2 class="sm-title">Liste speichern</h2>
+		<p class="sm-sub">Gib deiner Einkaufsliste einen Namen, um sie später wiederzufinden.</p>
+		<input
+			type="text"
+			class="save-name-input"
+			bind:value={saveListName}
+			use:focusOnMount
+		/>
+		<div class="save-modal-actions">
+			<button class="btn-save-cancel" onclick={() => { saveModalOpen = false; }}>Abbrechen</button>
+			<button class="btn-primary save-modal-confirm" onclick={saveList}>Speichern</button>
+		</div>
+	</div>
+{/if}
+
+<!-- ══════════════════════════════════════════════════════ SAVE TOAST ══════ -->
+{#if saveToastVisible}
+	<div class="save-toast">
+		<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+			<polyline points="20 6 9 17 4 12"/>
+		</svg>
+		Liste gespeichert
 	</div>
 {/if}
 
