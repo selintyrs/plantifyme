@@ -1,0 +1,21 @@
+package ch.zhaw.plantifyme.model;
+
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+import java.util.List;
+
+@Getter
+@Setter
+@NoArgsConstructor
+public class DiyRecipeDto {
+    private String id;
+    private String title;
+    private String description;
+    private Integer prepTimeMin;
+    private String difficulty;
+    private List<MatchingKey> matchingKeys;
+    private List<DiyIngredient> ingredients;
+    private List<DiyStep> instructions;
+}

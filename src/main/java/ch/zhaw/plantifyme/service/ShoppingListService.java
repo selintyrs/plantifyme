@@ -1,11 +1,15 @@
 package ch.zhaw.plantifyme.service;
 
+import ch.zhaw.plantifyme.model.DiyIngredient;
+import ch.zhaw.plantifyme.model.DiyRecipe;
 import ch.zhaw.plantifyme.model.GenericFood;
 import ch.zhaw.plantifyme.model.ShoppingItem;
 import ch.zhaw.plantifyme.model.ShoppingList;
 import ch.zhaw.plantifyme.model.SupermarketProduct;
 import ch.zhaw.plantifyme.model.dto.AddItemRequest;
 import ch.zhaw.plantifyme.model.dto.ReplaceItemRequest;
+import ch.zhaw.plantifyme.model.dto.ReplaceWithDiyRequest;
+import ch.zhaw.plantifyme.repository.DiyRecipeRepository;
 import ch.zhaw.plantifyme.repository.GenericFoodRepository;
 import ch.zhaw.plantifyme.repository.ShoppingListRepository;
 import ch.zhaw.plantifyme.repository.SupermarketProductRepository;
@@ -28,6 +32,9 @@ public class ShoppingListService {
 
     @Autowired
     private GenericFoodRepository genericFoodRepository;
+
+    @Autowired
+    private DiyRecipeRepository diyRecipeRepository;
 
     /**
      * Changes the supermarket of a shopping list and re-matches all type A/B items
@@ -180,6 +187,119 @@ public class ShoppingListService {
         item.setName(product.getName());
         item.setPrice(product.getPrice());
 
+        ShoppingList saved = shoppingListRepository.save(list);
+        return Optional.of(saved);
+    }
+
+    /**
+     * Replaces an existing shopping list item with the selected ingredients of a DIY recipe.
+     * The original item is removed and one new ShoppingItem is created per selected ingredient
+     * (ingredients named "Wasser" are skipped).
+     *
+     * @throws OwnershipException if userId does not match the list owner
+     */
+    public Optional<ShoppingList> replaceWithDiy(String listId, String userId, String itemId, ReplaceWithDiyRequest request) {
+        Optional<ShoppingList> optionalList = shoppingListRepository.findById(listId);
+        if (optionalList.isEmpty()) {
+            return Optional.empty();
+        }
+
+        ShoppingList list = optionalList.get();
+
+        if (!list.getUserId().equals(userId)) {
+            throw new OwnershipException("User " + userId + " does not own list " + listId);
+        }
+
+        Optional<DiyRecipe> optionalRecipe = diyRecipeRepository.findById(request.getDiyRecipeId());
+        if (optionalRecipe.isEmpty()) {
+            return Optional.empty();
+        }
+        DiyRecipe recipe = optionalRecipe.get();
+
+        if (list.getItems() == null) {
+            return Optional.empty();
+        }
+
+        ShoppingItem originalItem = list.getItems().stream()
+                .filter(i -> itemId.equals(i.getItemId())
+                        || request.getOriginalDisplayName().equals(i.getDisplayName()))
+                .findFirst()
+                .orElse(null);
+
+        if (originalItem == null) {
+            return Optional.empty();
+        }
+
+        List<ShoppingItem> items = new ArrayList<>(list.getItems());
+        items.remove(originalItem);
+
+        String supermarket = list.getSupermarket();
+        String normalized = supermarket != null && supermarket.equalsIgnoreCase("Migros")
+                ? "Migros" : supermarket != null ? supermarket.toLowerCase() : "";
+
+        String diyGroupLabel = "Zutat für Plantified " + request.getOriginalDisplayName();
+
+        List<DiyIngredient> ingredients = recipe.getIngredients();
+        if (ingredients != null) {
+            for (int i = 0; i < ingredients.size(); i++) {
+                if (!request.getSelectedIndexes().contains(i)) {
+                    continue;
+                }
+                DiyIngredient ingredient = ingredients.get(i);
+
+                if ("Wasser".equals(ingredient.getName())) {
+                    continue;
+                }
+
+                ShoppingItem newItem = new ShoppingItem();
+                newItem.setItemId(UUID.randomUUID().toString());
+                newItem.setQuantity(1);
+                newItem.setIsChecked(false);
+                newItem.setDiyGroupLabel(diyGroupLabel);
+
+                if ("A".equals(ingredient.getType()) || "B".equals(ingredient.getType())) {
+                    String displayName = ingredient.getMatchingDisplayName() != null
+                            ? ingredient.getMatchingDisplayName() : "";
+                    String subcategory = ingredient.getMatchingSubcategory() != null
+                            ? ingredient.getMatchingSubcategory() : "";
+                    newItem.setDisplayName(displayName);
+                    newItem.setSubcategory(subcategory);
+                    newItem.setType(ingredient.getType());
+
+                    List<SupermarketProduct> matches = supermarketProductRepository
+                            .findByMatchingKeyAndSupermarket(displayName, subcategory, normalized);
+                    if (!matches.isEmpty()) {
+                        SupermarketProduct match = matches.get(0);
+                        newItem.setProductId(match.getId());
+                        newItem.setName(match.getName());
+                        newItem.setPrice(match.getPrice());
+                    } else {
+                        newItem.setProductId(null);
+                        newItem.setName(ingredient.getName());
+                        newItem.setPrice(null);
+                    }
+                } else {
+                    newItem.setDisplayName(ingredient.getName());
+                    newItem.setSubcategory("");
+                    newItem.setType("C");
+
+                    genericFoodRepository.findByName(ingredient.getName()).ifPresentOrElse(
+                            food -> {
+                                newItem.setGenericFoodId(food.getId());
+                                newItem.setName(food.getName());
+                            },
+                            () -> {
+                                newItem.setGenericFoodId(null);
+                                newItem.setName(ingredient.getName());
+                            }
+                    );
+                }
+
+                items.add(newItem);
+            }
+        }
+
+        list.setItems(items);
         ShoppingList saved = shoppingListRepository.save(list);
         return Optional.of(saved);
     }

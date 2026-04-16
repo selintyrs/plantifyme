@@ -604,13 +604,16 @@ if (matches.length > 0) {
 											<span class="item-name"
 												>{result.displayName}</span
 											>
+											{#if result.diyGroupLabel}
+												<span class="item-plantified">{result.diyGroupLabel}</span>
+											{/if}
 										{:else if result.suggestedProduct}
 											<span class="item-name"
 												>{result.suggestedProduct
 													.name}</span
 											>
 											<span class="item-plantified"
-												>Plantified {result.displayName}</span
+												>{result.diyGroupLabel || `Plantified ${result.displayName}`}</span
 											>
 										{:else}
 											<span class="item-name"

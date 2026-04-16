@@ -22,4 +22,5 @@ public class ShoppingItem {
     private Double price;
     private Integer quantity;
     private Boolean isChecked;
+    private String diyGroupLabel;
 }

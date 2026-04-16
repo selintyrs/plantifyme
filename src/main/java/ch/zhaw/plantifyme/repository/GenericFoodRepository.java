@@ -8,4 +8,6 @@ import java.util.Optional;
 public interface GenericFoodRepository extends MongoRepository<GenericFood, String> {
 
     Optional<GenericFood> findByFrontendDictionaryId(String frontendDictionaryId);
+
+    Optional<GenericFood> findByName(String name);
 }

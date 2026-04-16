@@ -3,6 +3,7 @@ package ch.zhaw.plantifyme.controller;
 import ch.zhaw.plantifyme.model.ShoppingList;
 import ch.zhaw.plantifyme.model.dto.AddItemRequest;
 import ch.zhaw.plantifyme.model.dto.ReplaceItemRequest;
+import ch.zhaw.plantifyme.model.dto.ReplaceWithDiyRequest;
 import ch.zhaw.plantifyme.model.dto.SupermarketChangeRequest;
 import ch.zhaw.plantifyme.repository.ShoppingListRepository;
 import ch.zhaw.plantifyme.service.OwnershipException;
@@ -123,6 +124,22 @@ public class ShoppingListController {
             @RequestBody ReplaceItemRequest request) {
         try {
             return shoppingListService.replaceItem(listId, userId, itemId, request.getProductId())
+                    .map(ResponseEntity::ok)
+                    .orElse(ResponseEntity.notFound().build());
+        } catch (OwnershipException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    // TODO: Replace X-User-Id header with Auth0 JWT token extraction in Iteration 3
+    @PostMapping("/shoppinglists/{listId}/items/{itemId}/replace-with-diy")
+    public ResponseEntity<ShoppingList> replaceWithDiy(
+            @PathVariable String listId,
+            @PathVariable String itemId,
+            @RequestHeader("X-User-Id") String userId,
+            @RequestBody ReplaceWithDiyRequest request) {
+        try {
+            return shoppingListService.replaceWithDiy(listId, userId, itemId, request)
                     .map(ResponseEntity::ok)
                     .orElse(ResponseEntity.notFound().build());
         } catch (OwnershipException e) {

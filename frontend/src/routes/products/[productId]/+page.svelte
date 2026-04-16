@@ -2,6 +2,7 @@
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { matchResults, savedListId, itemIdMap } from '$lib/stores/shoppingList.js';
+	import { dictionaryStore } from '$lib/stores/dictionary.js';
 
 	let product = $state(null);
 	let genericFood = $state(null);
@@ -32,6 +33,12 @@
 	let savedToastMessage = $state('');
 	let toastTimer;
 
+	let diyRecipes = $state([]);
+	let diyDisplayName = $state('');
+	let diyModalOpen = $state(false);
+	let diyCheckedMap = $state({});
+	let diyReplacedVisible = $state(false);
+
 
 	const tabs = [
 		{ id: 'produkt', label: 'Produkt' },
@@ -52,6 +59,11 @@
 
 	let isFromAlternative = $derived($page.url.searchParams.get('from') === 'alternative');
 	let isFromSaved = $derived($page.url.searchParams.get('from') === 'saved');
+
+	let activeTabs = $derived.by(() => {
+		const base = isFromAlternative ? tabsAlt : tabs;
+		return diyRecipes.length === 0 ? base.filter(t => t.id !== 'diy') : base;
+	});
 
 	$effect(() => {
 		const productId = $page.params.productId;
@@ -74,6 +86,8 @@
 		activeTab = 'produkt';
 		isSavedProduct = false;
 		savedProductId = null;
+		diyRecipes = [];
+		diyDisplayName = '';
 		try {
 			const res = await fetch(`/api/products/${productId}`);
 			if (res.status === 404) {
@@ -83,6 +97,7 @@
 			if (!res.ok) throw new Error(`HTTP ${res.status}`);
 			product = await res.json();
 			checkIfSaved(productId);
+			loadDiyRecipes(productId);
 		} catch (e) {
 			error = 'Fehler beim Laden des Produkts.';
 			console.error(e);
@@ -250,6 +265,105 @@
 			altImgStages = { ...altImgStages, [altId]: 2 };
 		}
 	}
+
+	async function loadDiyRecipes(productId) {
+		const match = $matchResults.find(r => r.suggestedProduct?.id === productId);
+		diyDisplayName = match?.displayName || '';
+		const subcategory = match?.subcategory || '';
+		if (!diyDisplayName) return;
+		try {
+			const res = await fetch(`/api/diy-recipes?displayName=${encodeURIComponent(diyDisplayName)}&subcategory=${encodeURIComponent(subcategory)}`);
+			if (!res.ok) return;
+			diyRecipes = await res.json();
+		} catch (e) {
+			console.error('DIY-Rezepte laden fehlgeschlagen:', e);
+		}
+	}
+
+	function openDiyModal() {
+		const recipe = diyRecipes[0];
+		if (!recipe) return;
+		const map = {};
+		(recipe.ingredients || []).forEach((ing, i) => {
+			if (ing.name !== 'Wasser') {
+				map[i] = true;
+			}
+		});
+		diyCheckedMap = map;
+		diyModalOpen = true;
+	}
+
+	async function submitDiy() {
+		const recipe = diyRecipes[0];
+		if (!recipe || !$savedListId) return;
+
+		const match = $matchResults.find(r => r.suggestedProduct?.id === product.id);
+		const backendItemId = match ? $itemIdMap[match.itemId] : null;
+		if (!backendItemId) return;
+
+		const selectedIndexes = Object.entries(diyCheckedMap)
+			.filter(([, v]) => v)
+			.map(([k]) => parseInt(k))
+			.sort((a, b) => a - b);
+
+		try {
+			const res = await fetch(
+				`/api/shoppinglists/${$savedListId}/items/${backendItemId}/replace-with-diy`,
+				{
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json', 'X-User-Id': 'temp-user' },
+					body: JSON.stringify({
+						diyRecipeId: recipe.id,
+						selectedIndexes,
+						originalDisplayName: diyDisplayName,
+					}),
+				}
+			);
+			if (res.ok) {
+				const updatedList = await res.json();
+
+				const oldMatch = $matchResults.find(r => r.suggestedProduct?.id === product.id);
+				matchResults.update(prev => prev.filter(r => r.suggestedProduct?.id !== product.id));
+
+				function findUiCategory(item) {
+					const entry = $dictionaryStore.find(d => d.displayName === item.displayName);
+					if (entry) return entry.uiCategory;
+					if (item.type === 'C') return 'Saucen & Gewürze';
+					return 'Sonstiges';
+				}
+
+				const newDiyItems = (updatedList.items || []).filter(item => item.diyGroupLabel);
+				const newMatches = newDiyItems.map(item => ({
+					itemId: item.itemId,
+					type: item.type,
+					displayName: item.displayName || item.name,
+					uiCategory: findUiCategory(item),
+					suggestedProduct: item.type !== 'C' && item.productId
+						? { id: item.productId, name: item.name, price: item.price }
+						: null,
+					genericFood: item.type === 'C' && item.genericFoodId
+						? { id: item.genericFoodId, name: item.name }
+						: null,
+					diyGroupLabel: item.diyGroupLabel,
+				}));
+				matchResults.update(prev => [...prev, ...newMatches]);
+
+				itemIdMap.update(prev => {
+					const updated = { ...prev };
+					for (const item of newDiyItems) {
+						updated[item.itemId] = item.itemId;
+					}
+					return updated;
+				});
+
+				diyModalOpen = false;
+				diyReplacedVisible = true;
+				setTimeout(() => goto('/liste'), 1500);
+			}
+		} catch (e) {
+			console.error('DIY Replace fehlgeschlagen:', e);
+		}
+	}
 </script>
 
 <svelte:head>
@@ -320,7 +434,7 @@
 	<!-- Tab bar (sticky, below info) -->
 	<div class="tab-bar-wrapper">
 		<div class="tab-bar" role="tablist">
-			{#each (isFromAlternative ? tabsAlt : tabs) as tab}
+			{#each activeTabs as tab}
 				<button
 					class="tab"
 					class:tab-active={activeTab === tab.id}
@@ -465,13 +579,42 @@
 			{/if}
 
 		{:else if activeTab === 'diy'}
-			<div class="tab-placeholder tab-placeholder-center">
-				<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-					<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/>
-					<path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>
-				</svg>
-				<p class="diy-text">Bald verfügbar – Hier findest du Rezepte, um vegane Alternativen selbst herzustellen.</p>
-			</div>
+			{#each diyRecipes as recipe}
+				<div class="diy-recipe">
+					<div class="section">
+						<h2 class="diy-title">{recipe.title}</h2>
+						{#if recipe.description}
+							<p class="diy-description">{recipe.description}</p>
+						{/if}
+					</div>
+					<div class="section">
+						<h3 class="diy-subtitle">Zutaten</h3>
+						<div class="diy-ingredient-list">
+							{#each (recipe.ingredients || []).filter(i => i.name !== 'Wasser') as ing}
+								<div class="diy-ingredient-row">
+									<span class="diy-ing-qty">{ing.amount != null ? ing.amount : ''}{ing.unit ? '\u00a0' + ing.unit : ''}</span>
+									<span class="diy-ing-name">{ing.name}</span>
+								</div>
+							{/each}
+						</div>
+					</div>
+					<div class="diy-actions">
+						{#if $savedListId}
+							<button class="btn-diy-add" onclick={openDiyModal}>
+								Zutaten zur Liste hinzufügen
+							</button>
+						{:else}
+							<button class="btn-diy-add" disabled>
+								Zutaten zur Liste hinzufügen
+							</button>
+							<p class="diy-hint">Speichere zuerst deine Liste, um DIY-Zutaten hinzuzufügen.</p>
+						{/if}
+						<button class="btn-diy-recipe" disabled title="Bald verfügbar">
+							Zum Rezept
+						</button>
+					</div>
+				</div>
+			{/each}
 		{/if}
 	</div>
 
@@ -541,6 +684,58 @@
 <!-- ── Saved toast ─────────────────────────────────────────────────────────── -->
 {#if savedToastVisible}
 	<div class="saved-toast">{savedToastMessage}</div>
+{/if}
+
+<!-- ── DIY ingredients modal ─────────────────────────────────────────────── -->
+{#if diyModalOpen}
+	<div class="diy-backdrop" role="presentation" onclick={() => { diyModalOpen = false; }}>
+		<div class="diy-sheet" role="dialog" aria-modal="true" tabindex="-1" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
+			<div class="diy-sheet-header">
+				<h2 class="diy-sheet-title">Produkte entfernen</h2>
+				<button class="icon-btn" onclick={() => { diyModalOpen = false; }} aria-label="Schliessen">
+					<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+				</button>
+			</div>
+			<p class="diy-sheet-sub">Wähle die Zutaten ab, die du nicht auf deiner Einkaufsliste benötigst (z.B. weil du sie schon zuhause hast).</p>
+			<div class="diy-check-list">
+				{#each (diyRecipes[0]?.ingredients || []) as ing, i}
+					{#if ing.name !== 'Wasser'}
+						<button
+							class="diy-check-row"
+							class:diy-check-row-unchecked={!diyCheckedMap[i]}
+							onclick={() => { diyCheckedMap = { ...diyCheckedMap, [i]: !diyCheckedMap[i] }; }}
+						>
+							<div class="diy-checkbox" class:diy-checkbox-checked={diyCheckedMap[i]}>
+								{#if diyCheckedMap[i]}
+									<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+								{/if}
+							</div>
+							<span class="diy-check-name">{ing.name}</span>
+							<span class="diy-check-amount">{ing.amount != null ? ing.amount : ''}{ing.unit ? '\u00a0' + ing.unit : ''}</span>
+						</button>
+					{/if}
+				{/each}
+			</div>
+			<div class="diy-sheet-actions">
+				<button class="btn-diy-weiter" onclick={submitDiy}>Weiter</button>
+				<button class="btn-diy-cancel" onclick={() => { diyModalOpen = false; }}>Abbrechen</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- ── DIY replace confirmation ───────────────────────────────────────────── -->
+{#if diyReplacedVisible}
+	<div class="replace-backdrop">
+		<div class="replace-modal">
+			<div class="replace-check">
+				<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+					<polyline points="20 6 9 17 4 12"/>
+				</svg>
+			</div>
+			<p class="replace-title">Produkt wurde durch DIY-Zutaten ersetzt</p>
+		</div>
+	</div>
 {/if}
 
 <!-- ── Replace confirmation modal ────────────────────────────────────────── -->
@@ -803,12 +998,6 @@
 		color: #D1D5DB;
 	}
 
-	.diy-text {
-		font-size: 0.9375rem;
-		color: var(--color-text-light);
-		line-height: 1.6;
-	}
-
 	/* ── Nutrition table ──────────────────────────────────────────────────── */
 	.nutrition-table {
 		width: 100%;
@@ -1036,6 +1225,255 @@
 		color: var(--color-text-light);
 		text-align: center;
 		line-height: 1.4;
+	}
+
+	/* ── DIY Tab ─────────────────────────────────────────────────────────── */
+	.diy-recipe {
+		display: flex;
+		flex-direction: column;
+		gap: 0;
+	}
+
+	.diy-title {
+		font-size: 1.375rem;
+		font-weight: 700;
+		color: var(--color-text);
+	}
+
+	.diy-description {
+		font-size: 0.9375rem;
+		color: var(--color-text-light);
+		line-height: 1.6;
+	}
+
+	.diy-subtitle {
+		font-size: 1.0625rem;
+		font-weight: 700;
+		color: var(--color-text);
+		margin: 0;
+	}
+
+	.diy-ingredient-list {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+	}
+
+	.diy-ingredient-row {
+		display: flex;
+		align-items: baseline;
+		gap: 8px;
+		font-size: 0.9375rem;
+		color: var(--color-text);
+	}
+
+	.diy-ing-qty {
+		color: var(--color-text-light);
+		min-width: 60px;
+		flex-shrink: 0;
+	}
+
+	.diy-ing-name {
+		color: var(--color-text);
+	}
+
+	/* ── DIY action buttons ───────────────────────────────────────────────── */
+	.diy-actions {
+		padding: 24px 16px 16px;
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+	}
+
+	.btn-diy-add {
+		width: 100%;
+		padding: 16px;
+		border-radius: 16px;
+		background: var(--color-primary);
+		color: #fff;
+		font-size: 1.0625rem;
+		font-weight: 700;
+		text-align: center;
+		box-shadow: 0 8px 30px rgba(45, 125, 70, 0.3);
+		transition: background 0.15s ease;
+	}
+
+	.btn-diy-add:active {
+		background: var(--color-primary-hover);
+	}
+
+	.btn-diy-add:disabled {
+		background: #d1d5db;
+		box-shadow: none;
+		cursor: not-allowed;
+	}
+
+	.btn-diy-recipe {
+		width: 100%;
+		padding: 16px;
+		border-radius: 16px;
+		border: 1.5px solid var(--color-primary);
+		background: var(--color-bg);
+		color: var(--color-primary);
+		font-size: 1.0625rem;
+		font-weight: 700;
+		text-align: center;
+	}
+
+	.btn-diy-recipe:disabled {
+		border-color: #d1d5db;
+		color: #d1d5db;
+		cursor: not-allowed;
+	}
+
+	.diy-hint {
+		font-size: 0.8125rem;
+		color: var(--color-text-light);
+		text-align: center;
+		line-height: 1.4;
+	}
+
+	/* ── DIY modal (bottom sheet) ─────────────────────────────────────────── */
+	.diy-backdrop {
+		position: fixed;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.4);
+		z-index: 60;
+		display: flex;
+		align-items: flex-end;
+		justify-content: center;
+	}
+
+	.diy-sheet {
+		width: 100%;
+		max-width: 390px;
+		max-height: 80dvh;
+		background: var(--color-bg);
+		border-radius: 20px 20px 0 0;
+		padding: 0 0 24px;
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
+	}
+
+	.diy-sheet::before {
+		content: '';
+		display: block;
+		width: 40px;
+		height: 4px;
+		background: #d1d5db;
+		border-radius: 2px;
+		margin: 12px auto;
+		flex-shrink: 0;
+	}
+
+	.diy-sheet-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 8px 20px 4px;
+		flex-shrink: 0;
+	}
+
+	.diy-sheet-title {
+		font-size: 1.25rem;
+		font-weight: 700;
+		color: var(--color-text);
+	}
+
+	.diy-sheet-sub {
+		font-size: 0.875rem;
+		color: var(--color-text-light);
+		line-height: 1.5;
+		padding: 0 20px 12px;
+		flex-shrink: 0;
+	}
+
+	.diy-check-list {
+		flex: 1;
+		overflow-y: auto;
+		padding: 4px 20px;
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+	}
+
+	.diy-check-row {
+		display: flex;
+		align-items: center;
+		gap: 14px;
+		padding: 14px 16px;
+		border-radius: 14px;
+		border: 1.5px solid var(--color-primary-light);
+		background: var(--color-primary-light);
+		width: 100%;
+		text-align: left;
+		transition: background 0.12s ease, border-color 0.12s ease;
+	}
+
+	.diy-check-row-unchecked {
+		background: var(--color-bg);
+		border-color: var(--color-border);
+	}
+
+	.diy-checkbox {
+		width: 28px;
+		height: 28px;
+		border-radius: 50%;
+		border: 2px solid var(--color-border);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		background: var(--color-bg);
+		transition: background 0.12s ease, border-color 0.12s ease;
+	}
+
+	.diy-checkbox-checked {
+		background: var(--color-primary);
+		border-color: var(--color-primary);
+	}
+
+	.diy-check-name {
+		flex: 1;
+		font-size: 0.9375rem;
+		font-weight: 600;
+		color: var(--color-text);
+	}
+
+	.diy-check-amount {
+		font-size: 0.875rem;
+		color: var(--color-text-light);
+		flex-shrink: 0;
+	}
+
+	.diy-sheet-actions {
+		padding: 16px 20px 0;
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		flex-shrink: 0;
+	}
+
+	.btn-diy-weiter {
+		width: 100%;
+		padding: 14px;
+		border-radius: 14px;
+		background: var(--color-primary);
+		color: #fff;
+		font-size: 0.9375rem;
+		font-weight: 700;
+		text-align: center;
+	}
+
+	.btn-diy-cancel {
+		width: 100%;
+		padding: 10px;
+		background: none;
+		color: var(--color-text-light);
+		font-size: 0.9375rem;
+		font-weight: 500;
+		text-align: center;
 	}
 
 	/* ── Saved toast ──────────────────────────────────────────────────────── */
