@@ -5,6 +5,7 @@ import ch.zhaw.plantifyme.model.ShoppingItem;
 import ch.zhaw.plantifyme.model.ShoppingList;
 import ch.zhaw.plantifyme.model.SupermarketProduct;
 import ch.zhaw.plantifyme.model.dto.AddItemRequest;
+import ch.zhaw.plantifyme.model.dto.ReplaceItemRequest;
 import ch.zhaw.plantifyme.repository.GenericFoodRepository;
 import ch.zhaw.plantifyme.repository.ShoppingListRepository;
 import ch.zhaw.plantifyme.repository.SupermarketProductRepository;
@@ -133,6 +134,47 @@ public class ShoppingListService {
         List<ShoppingItem> items = new ArrayList<>(list.getItems() != null ? list.getItems() : List.of());
         items.add(item);
         list.setItems(items);
+
+        ShoppingList saved = shoppingListRepository.save(list);
+        return Optional.of(saved);
+    }
+
+    /**
+     * Replaces the supermarket product of an existing item in a shopping list.
+     *
+     * @throws OwnershipException if userId does not match the list owner
+     */
+    public Optional<ShoppingList> replaceItem(String listId, String userId, String itemId, String newProductId) {
+        Optional<ShoppingList> optionalList = shoppingListRepository.findById(listId);
+        if (optionalList.isEmpty()) {
+            return Optional.empty();
+        }
+
+        ShoppingList list = optionalList.get();
+
+        if (!list.getUserId().equals(userId)) {
+            throw new OwnershipException("User " + userId + " does not own list " + listId);
+        }
+
+        ShoppingItem item = list.getItems() == null ? null :
+                list.getItems().stream()
+                        .filter(i -> itemId.equals(i.getItemId()))
+                        .findFirst()
+                        .orElse(null);
+
+        if (item == null) {
+            return Optional.empty();
+        }
+
+        Optional<SupermarketProduct> optionalProduct = supermarketProductRepository.findById(newProductId);
+        if (optionalProduct.isEmpty()) {
+            return Optional.empty();
+        }
+
+        SupermarketProduct product = optionalProduct.get();
+        item.setProductId(product.getId());
+        item.setName(product.getName());
+        item.setPrice(product.getPrice());
 
         ShoppingList saved = shoppingListRepository.save(list);
         return Optional.of(saved);

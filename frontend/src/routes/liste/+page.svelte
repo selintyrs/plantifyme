@@ -11,6 +11,8 @@
 		updateQuantity,
 		isVeganized,
 		matchResults,
+		savedListId,
+		itemIdMap,
 	} from "$lib/stores/shoppingList.js";
 	import { supermarketStore } from "$lib/stores/supermarket.js";
 	import { goto } from "$app/navigation";
@@ -22,7 +24,6 @@
 	let saveModalOpen = $state(false);
 	let saveListName = $state('');
 	let isSaved = $state(false);
-	let savedListId = $state(null);
 	let saveToastVisible = $state(false);
 
 	// ── Modal state ───────────────────────────────────────────────────────────
@@ -253,14 +254,14 @@ if (matches.length > 0) {
 		supermarketStore.set(newSupermarket);
 		supermarketModalOpen = false;
 
-		if (!savedListId) {
+		if (!$savedListId) {
 			await plantifyMatch();
 			return;
 		}
 
 		isLoading = true;
 		try {
-			const res = await fetch(`/api/shoppinglists/${savedListId}/supermarket`, {
+			const res = await fetch(`/api/shoppinglists/${$savedListId}/supermarket`, {
 				method: 'PATCH',
 				headers: {
 					'Content-Type': 'application/json',
@@ -301,7 +302,7 @@ if (matches.length > 0) {
 			});
 		} catch (e) {
 			console.error('Item sync fehlgeschlagen:', e);
-			savedListId = null;
+			savedListId.set(null);
 		}
 	}
 
@@ -319,7 +320,7 @@ if (matches.length > 0) {
 	async function handleEntryTap(entry) {
 		isSaved = false;
 		if (isAdded(entry)) {
-			savedListId = null;
+			savedListId.set(null);
 			const items = $shoppingListStore.filter(
 				(i) => i.frontendDictionaryId === entry.id,
 			);
@@ -330,7 +331,7 @@ if (matches.length > 0) {
 				}
 			});
 		} else {
-			const listIdToSync = savedListId;
+			const listIdToSync = $savedListId;
 			addItem(entry, "");
 			if ($isVeganized) {
 				const added = $shoppingListStore.find(
@@ -362,7 +363,7 @@ if (matches.length > 0) {
 	async function confirmSubcat() {
 		isSaved = false;
 		if (subcatEntry) {
-			const listIdToSync = savedListId;
+			const listIdToSync = $savedListId;
 			const entrySnapshot = subcatEntry;
 			const subcatSnapshot = subcatSelected;
 			addItem(subcatEntry, subcatSelected);
@@ -388,7 +389,7 @@ if (matches.length > 0) {
 		if (item.quantity === 1) {
 			pendingDeleteId = item.id;
 		} else {
-			savedListId = null;
+			savedListId.set(null);
 			isSaved = false;
 			updateQuantity(item.id, -1);
 		}
@@ -401,7 +402,7 @@ if (matches.length > 0) {
 		}
 		pendingDeleteId = null;
 		isSaved = false;
-		savedListId = null;
+		savedListId.set(null);
 	}
 
 	function cancelDelete() {
@@ -421,7 +422,7 @@ if (matches.length > 0) {
 		if (item.quantity + delta < 1) {
 			pendingDeleteId = id;
 		} else {
-			savedListId = null;
+			savedListId.set(null);
 			isSaved = false;
 			updateQuantity(id, delta);
 		}
@@ -475,7 +476,13 @@ if (matches.length > 0) {
 			});
 			if (!res.ok) throw new Error(`HTTP ${res.status}`);
 			const saved = await res.json();
-			savedListId = saved.id;
+			savedListId.set(saved.id);
+			const map = {};
+			for (const backendItem of (saved.items || [])) {
+				const localMatch = $matchResults.find(r => r.displayName === backendItem.displayName);
+				if (localMatch) map[localMatch.itemId] = backendItem.itemId;
+			}
+			itemIdMap.set(map);
 			saveModalOpen = false;
 			isSaved = true;
 			saveToastVisible = true;

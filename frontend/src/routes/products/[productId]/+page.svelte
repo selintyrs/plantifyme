@@ -1,7 +1,7 @@
 <script>
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { matchResults } from '$lib/stores/shoppingList.js';
+	import { matchResults, savedListId, itemIdMap } from '$lib/stores/shoppingList.js';
 
 	let product = $state(null);
 	let genericFood = $state(null);
@@ -145,6 +145,9 @@
 
 	function replaceProduct(newProduct) {
 		const targetId = replacingId ?? $page.params.productId;
+		const localMatch = $matchResults.find(r => r.suggestedProduct?.id === targetId);
+		const backendItemId = localMatch ? $itemIdMap[localMatch.itemId] : null;
+
 		matchResults.update(prev =>
 			prev.map(r =>
 				r.suggestedProduct?.id === targetId
@@ -153,6 +156,15 @@
 			)
 		);
 		replacedProductName = newProduct.name;
+
+		if ($savedListId && backendItemId) {
+			fetch(`/api/shoppinglists/${$savedListId}/items/${backendItemId}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json', 'X-User-Id': 'temp-user' },
+				body: JSON.stringify({ productId: newProduct.id }),
+			}).catch(e => console.error('Replace sync fehlgeschlagen:', e));
+		}
+
 		setTimeout(() => goto('/liste'), 1500);
 	}
 

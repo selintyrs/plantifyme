@@ -2,6 +2,7 @@ package ch.zhaw.plantifyme.controller;
 
 import ch.zhaw.plantifyme.model.ShoppingList;
 import ch.zhaw.plantifyme.model.dto.AddItemRequest;
+import ch.zhaw.plantifyme.model.dto.ReplaceItemRequest;
 import ch.zhaw.plantifyme.model.dto.SupermarketChangeRequest;
 import ch.zhaw.plantifyme.repository.ShoppingListRepository;
 import ch.zhaw.plantifyme.service.OwnershipException;
@@ -82,6 +83,22 @@ public class ShoppingListController {
             @RequestBody AddItemRequest request) {
         try {
             return shoppingListService.addItemToList(listId, userId, request)
+                    .map(ResponseEntity::ok)
+                    .orElse(ResponseEntity.notFound().build());
+        } catch (OwnershipException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    // TODO: Replace X-User-Id header with Auth0 JWT token extraction in Iteration 3
+    @PatchMapping("/shoppinglists/{listId}/items/{itemId}")
+    public ResponseEntity<ShoppingList> replaceItem(
+            @PathVariable String listId,
+            @PathVariable String itemId,
+            @RequestHeader("X-User-Id") String userId,
+            @RequestBody ReplaceItemRequest request) {
+        try {
+            return shoppingListService.replaceItem(listId, userId, itemId, request.getProductId())
                     .map(ResponseEntity::ok)
                     .orElse(ResponseEntity.notFound().build());
         } catch (OwnershipException e) {
