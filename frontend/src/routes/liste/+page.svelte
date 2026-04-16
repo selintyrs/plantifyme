@@ -22,6 +22,7 @@
 	let saveModalOpen = $state(false);
 	let saveListName = $state('');
 	let isSaved = $state(false);
+	let savedListId = $state(null);
 	let saveToastVisible = $state(false);
 
 	// ── Modal state ───────────────────────────────────────────────────────────
@@ -227,9 +228,59 @@ if (matches.length > 0) {
 		supermarketModalOpen = true;
 	}
 
+	function transformResponseItems(savedItems) {
+		return savedItems.map(item => {
+			const listItem = $shoppingListStore.find(
+				i => i.displayName === item.displayName && (i.subcategory ?? '') === (item.subcategory ?? '')
+			);
+			const existingMatch = $matchResults.find(r => r.displayName === item.displayName);
+			return {
+				itemId: listItem ? listItem.id.toString() : item.itemId,
+				type: item.type,
+				displayName: item.displayName ?? '',
+				uiCategory: listItem?.uiCategory ?? existingMatch?.uiCategory ?? 'Sonstiges',
+				suggestedProduct: item.type !== 'C' && item.productId
+					? { id: item.productId, name: item.name, price: item.price }
+					: null,
+				genericFood: item.type === 'C' && item.genericFoodId
+					? { id: item.genericFoodId }
+					: null,
+			};
+		});
+	}
+
+	async function changeSupermarket(newSupermarket) {
+		supermarketStore.set(newSupermarket);
+		supermarketModalOpen = false;
+
+		if (!savedListId) {
+			await plantifyMatch();
+			return;
+		}
+
+		isLoading = true;
+		try {
+			const res = await fetch(`/api/shoppinglists/${savedListId}/supermarket`, {
+				method: 'PATCH',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-User-Id': 'temp-user',
+				},
+				body: JSON.stringify({ supermarket: newSupermarket }),
+			});
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			const data = await res.json();
+			matchResults.set(transformResponseItems(data.items || []));
+		} catch (e) {
+			console.error('Supermarkt wechseln fehlgeschlagen:', e);
+			await plantifyMatch();
+		} finally {
+			isLoading = false;
+		}
+	}
+
 	function confirmSupermarket() {
-		supermarketStore.set(supermarketDraft);
-		plantifyMatch();
+		changeSupermarket(supermarketDraft);
 	}
 
 	// ── Add-Product Modal ─────────────────────────────────────────────────────
@@ -245,6 +296,7 @@ if (matches.length > 0) {
 
 	async function handleEntryTap(entry) {
 		isSaved = false;
+		savedListId = null;
 		if (isAdded(entry)) {
 			const items = $shoppingListStore.filter(
 				(i) => i.frontendDictionaryId === entry.id,
@@ -282,6 +334,8 @@ if (matches.length > 0) {
 	}
 
 	async function confirmSubcat() {
+		isSaved = false;
+		savedListId = null;
 		if (subcatEntry) {
 			addItem(subcatEntry, subcatSelected);
 			if ($isVeganized) {
@@ -303,6 +357,8 @@ if (matches.length > 0) {
 		if (item.quantity === 1) {
 			pendingDeleteId = item.id;
 		} else {
+			savedListId = null;
+			isSaved = false;
 			updateQuantity(item.id, -1);
 		}
 	}
@@ -314,6 +370,7 @@ if (matches.length > 0) {
 		}
 		pendingDeleteId = null;
 		isSaved = false;
+		savedListId = null;
 	}
 
 	function cancelDelete() {
@@ -333,6 +390,8 @@ if (matches.length > 0) {
 		if (item.quantity + delta < 1) {
 			pendingDeleteId = id;
 		} else {
+			savedListId = null;
+			isSaved = false;
 			updateQuantity(id, delta);
 		}
 	}
@@ -361,6 +420,8 @@ if (matches.length > 0) {
 				productId: !isTypeC && r.suggestedProduct ? r.suggestedProduct.id : null,
 				genericFoodId: isTypeC && r.genericFood ? r.genericFood.id : null,
 				type: r.type,
+				displayName: r.displayName ?? '',
+				subcategory: listItem?.subcategory ?? '',
 				name: !isTypeC && r.suggestedProduct ? r.suggestedProduct.name : r.displayName,
 				price: !isTypeC && r.suggestedProduct ? r.suggestedProduct.price : null,
 				quantity: qty,
@@ -382,6 +443,8 @@ if (matches.length > 0) {
 				}),
 			});
 			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			const saved = await res.json();
+			savedListId = saved.id;
 			saveModalOpen = false;
 			isSaved = true;
 			saveToastVisible = true;
@@ -407,7 +470,10 @@ if (matches.length > 0) {
 			<div class="header-titles">
 				<h1>Einkaufsliste</h1>
 				{#if $isVeganized}
-					<span class="supermarket-badge">{$supermarketStore}</span>
+					<div class="supermarket-badge-row">
+						<span class="supermarket-badge">{$supermarketStore}</span>
+						<button class="badge-change-btn" onclick={openSupermarketModal} aria-label="Supermarkt ändern">Ändern</button>
+					</div>
 				{/if}
 			</div>
 			<button class="icon-btn" aria-label="Gespeicherte Listen">
@@ -1282,12 +1348,28 @@ if (matches.length > 0) {
 		color: var(--color-text);
 	}
 
+	.supermarket-badge-row {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+	}
+
 	.supermarket-badge {
 		font-size: 0.75rem;
 		font-weight: 700;
 		color: var(--color-primary);
 		text-transform: uppercase;
 		letter-spacing: 0.06em;
+	}
+
+	.badge-change-btn {
+		font-size: 0.6875rem;
+		font-weight: 600;
+		color: var(--color-primary);
+		text-decoration: underline;
+		text-underline-offset: 2px;
+		background: none;
+		padding: 0;
 	}
 
 	.icon-btn {
