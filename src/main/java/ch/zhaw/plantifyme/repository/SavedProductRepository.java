@@ -8,7 +8,7 @@ import java.util.Optional;
 
 public interface SavedProductRepository extends MongoRepository<SavedProduct, String> {
 
-    List<SavedProduct> findByUserId(String userId);
+    List<SavedProduct> findByUserIdOrderBySavedAtDesc(String userId);
 
     Optional<SavedProduct> findByUserIdAndProductId(String userId, String productId);
 }

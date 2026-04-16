@@ -14,6 +14,11 @@
 	let activeTab = $state('listen');
 	let pendingDeleteId = $state(null);
 
+	let savedProducts = $state([]);
+	let productsLoaded = $state(false);
+	let pendingDeleteProductId = $state(null);
+	let prodImgErrors = $state({});
+
 	const tabs = [
 		{ id: 'listen',   label: 'Listen' },
 		{ id: 'produkte', label: 'Produkte' },
@@ -36,6 +41,34 @@
 			lists = [];
 		} finally {
 			isLoading = false;
+		}
+	}
+
+	async function loadSavedProducts() {
+		try {
+			const res = await fetch('/api/saved-products?userId=temp-user');
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			savedProducts = await res.json();
+		} catch (e) {
+			console.error('Favoriten laden fehlgeschlagen:', e);
+			savedProducts = [];
+		} finally {
+			productsLoaded = true;
+		}
+	}
+
+	async function confirmDeleteProduct(id) {
+		try {
+			const res = await fetch(`/api/saved-products/${id}`, {
+				method: 'DELETE',
+				headers: { 'X-User-Id': 'temp-user' },
+			});
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			savedProducts = savedProducts.filter((p) => p.id !== id);
+		} catch (e) {
+			console.error('Favorit löschen fehlgeschlagen:', e);
+		} finally {
+			pendingDeleteProductId = null;
 		}
 	}
 
@@ -126,7 +159,7 @@
 			<button
 				class="tab-btn"
 				class:tab-active={activeTab === tab.id}
-				onclick={() => { activeTab = tab.id; }}
+				onclick={() => { activeTab = tab.id; if (tab.id === 'produkte' && !productsLoaded) loadSavedProducts(); }}
 			>
 				{tab.label}
 			</button>
@@ -195,7 +228,80 @@
 			</div>
 		{/if}
 
-	<!-- Tab: Produkte / Rezepte -->
+	<!-- Tab: Produkte -->
+	{:else if activeTab === 'produkte'}
+		{#if !productsLoaded}
+			<div class="loading-wrap">
+				<div class="spinner"></div>
+			</div>
+		{:else if savedProducts.length === 0}
+			<div class="empty-state">
+				<div class="empty-icon">
+					<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"
+						viewBox="0 0 24 24" fill="none" stroke="currentColor"
+						stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+						<path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>
+					</svg>
+				</div>
+				<p class="empty-title">Keine gespeicherten Produkte</p>
+				<p class="empty-sub">Tippe auf das Lesezeichen-Symbol auf einer Produktdetailseite, um Produkte zu speichern.</p>
+			</div>
+		{:else}
+			<div class="prod-cards">
+				{#each savedProducts as p (p.id)}
+					<div class="prod-card" role="button" tabindex="0"
+						onclick={() => { if (pendingDeleteProductId !== p.id) goto(`/products/${p.productId}?type=${p.type}&from=saved`); }}
+						onkeydown={(e) => { if (e.key === 'Enter') goto(`/products/${p.productId}?type=${p.type}&from=saved`); }}>
+						<div class="prod-card-inner">
+							<div class="prod-img-wrapper">
+								{#if !prodImgErrors[p.id] && p.imageUrl}
+									<img src={p.imageUrl} alt={p.name} class="prod-img"
+										onerror={() => { prodImgErrors = { ...prodImgErrors, [p.id]: true }; }} />
+								{:else}
+									<div class="prod-img-placeholder"></div>
+								{/if}
+							</div>
+							<div class="prod-info">
+								<p class="prod-name">{p.name}</p>
+								{#if p.brand}
+									<p class="prod-brand">{p.brand}</p>
+								{/if}
+								<div class="prod-meta">
+									<span class="prod-supermarket">{p.supermarket}</span>
+									{#if p.price != null}
+										<span class="card-dot">·</span>
+										<span class="prod-price">CHF {p.price.toFixed(2)}</span>
+									{/if}
+								</div>
+							</div>
+							<div class="prod-right">
+								{#if pendingDeleteProductId === p.id}
+									<div class="delete-confirm" role="presentation" onclick={(e) => e.stopPropagation()}>
+										<span class="delete-label">Löschen?</span>
+										<button class="btn-confirm" onclick={() => confirmDeleteProduct(p.id)}>Ja</button>
+										<button class="btn-cancel" onclick={() => { pendingDeleteProductId = null; }}>Nein</button>
+									</div>
+								{:else}
+									<button class="trash-btn" aria-label="Favorit entfernen"
+										onclick={(e) => { e.stopPropagation(); pendingDeleteProductId = p.id; }}>
+										<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+											viewBox="0 0 24 24" fill="none" stroke="currentColor"
+											stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+											<polyline points="3 6 5 6 21 6"/>
+											<path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+											<path d="M10 11v6"/><path d="M14 11v6"/>
+											<path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+										</svg>
+									</button>
+								{/if}
+							</div>
+						</div>
+					</div>
+				{/each}
+			</div>
+		{/if}
+
+	<!-- Tab: Rezepte -->
 	{:else}
 		<div class="placeholder">
 			<p class="placeholder-text">Bald verfügbar</p>
@@ -451,5 +557,98 @@
 	.placeholder-text {
 		font-size: 0.9375rem;
 		color: var(--color-text-light);
+	}
+
+	/* ── Product cards (Favoriten) ────────────────────────────────────────── */
+	.prod-cards {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+	}
+
+	.prod-card {
+		background: #ffffff;
+		border-radius: 16px;
+		padding: 12px 16px;
+		box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07);
+		cursor: pointer;
+	}
+
+	.prod-card-inner {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+	}
+
+	.prod-img-wrapper {
+		width: 60px;
+		height: 60px;
+		flex-shrink: 0;
+		border-radius: 10px;
+		overflow: hidden;
+		background: #F9FAFB;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.prod-img {
+		width: 100%;
+		height: 100%;
+		object-fit: contain;
+	}
+
+	.prod-img-placeholder {
+		width: 100%;
+		height: 100%;
+		background: #F3F4F6;
+	}
+
+	.prod-info {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+
+	.prod-name {
+		font-size: 0.9375rem;
+		font-weight: 700;
+		color: var(--color-text);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.prod-brand {
+		font-size: 0.8125rem;
+		color: var(--color-text-light);
+	}
+
+	.prod-meta {
+		display: flex;
+		align-items: center;
+		gap: 5px;
+		margin-top: 2px;
+	}
+
+	.prod-supermarket {
+		font-size: 0.6875rem;
+		font-weight: 700;
+		color: var(--color-primary);
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+	}
+
+	.prod-price {
+		font-size: 0.6875rem;
+		color: var(--color-text-light);
+	}
+
+	.prod-right {
+		flex-shrink: 0;
+		display: flex;
+		align-items: center;
 	}
 </style>

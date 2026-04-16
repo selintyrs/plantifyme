@@ -26,6 +26,13 @@
 
 	let replacingId = $derived($page.url.searchParams.get('replacing'));
 
+	let isSavedProduct = $state(false);
+	let savedProductId = $state(null);
+	let savedToastVisible = $state(false);
+	let savedToastMessage = $state('');
+	let toastTimer;
+
+
 	const tabs = [
 		{ id: 'produkt', label: 'Produkt' },
 		{ id: 'naehrwerte', label: 'Nährwerte' },
@@ -44,6 +51,7 @@
 	];
 
 	let isFromAlternative = $derived($page.url.searchParams.get('from') === 'alternative');
+	let isFromSaved = $derived($page.url.searchParams.get('from') === 'saved');
 
 	$effect(() => {
 		const productId = $page.params.productId;
@@ -64,6 +72,8 @@
 		altImgStages = {};
 		activeFilter = null;
 		activeTab = 'produkt';
+		isSavedProduct = false;
+		savedProductId = null;
 		try {
 			const res = await fetch(`/api/products/${productId}`);
 			if (res.status === 404) {
@@ -72,12 +82,71 @@
 			}
 			if (!res.ok) throw new Error(`HTTP ${res.status}`);
 			product = await res.json();
+			checkIfSaved(productId);
 		} catch (e) {
 			error = 'Fehler beim Laden des Produkts.';
 			console.error(e);
 		} finally {
 			isLoading = false;
 		}
+	}
+
+	async function checkIfSaved(productId) {
+		try {
+			const res = await fetch('/api/saved-products?userId=temp-user');
+			if (!res.ok) return;
+			const list = await res.json();
+			const found = list.find(p => p.productId === productId);
+			if (found) {
+				isSavedProduct = true;
+				savedProductId = found.id;
+			}
+		} catch (e) {
+			console.error('Saved-Status prüfen fehlgeschlagen:', e);
+		}
+	}
+
+	async function toggleSaved() {
+		if (isSavedProduct) {
+			try {
+				const res = await fetch(`/api/saved-products/${savedProductId}`, {
+					method: 'DELETE',
+					headers: { 'X-User-Id': 'temp-user' },
+				});
+				if (res.ok) {
+					isSavedProduct = false;
+					savedProductId = null;
+					showSavedToast('Produkt entfernt');
+				}
+			} catch (e) {
+				console.error('Produkt entfernen fehlgeschlagen:', e);
+			}
+		} else {
+			try {
+				const res = await fetch('/api/saved-products', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json', 'X-User-Id': 'temp-user' },
+					body: JSON.stringify({ productId: product.id, type: product.type }),
+				});
+				if (res.status === 201) {
+					const saved = await res.json();
+					isSavedProduct = true;
+					savedProductId = saved.id;
+					showSavedToast('Produkt gespeichert');
+				} else if (res.status === 409) {
+					isSavedProduct = true;
+				}
+			} catch (e) {
+				console.error('Produkt speichern fehlgeschlagen:', e);
+			}
+		}
+	}
+
+	function showSavedToast(message) {
+		savedToastMessage = message;
+		savedToastVisible = true;
+		clearTimeout(toastTimer);
+		toastTimer = setTimeout(() => { savedToastVisible = false; }, 2500);
 	}
 
 	async function loadGenericFood(foodId) {
@@ -207,8 +276,12 @@
 		<button class="icon-btn" onclick={() => history.back()} aria-label="Zurück">
 			<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
 		</button>
-		<button class="icon-btn" aria-label="Speichern">
-			<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+		<button class="icon-btn" aria-label="Speichern" onclick={toggleSaved}>
+			{#if isSavedProduct}
+				<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+			{:else}
+				<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+			{/if}
 		</button>
 	</div>
 
@@ -380,9 +453,11 @@
 								>
 									<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
 								</button>
-								<button class="btn-replace" onclick={() => replaceProduct(alt)}>
-									Ersetzen
-								</button>
+								{#if !isFromSaved}
+									<button class="btn-replace" onclick={() => replaceProduct(alt)}>
+										Ersetzen
+									</button>
+								{/if}
 							</div>
 						</div>
 					{/each}
@@ -461,6 +536,11 @@
 			</table>
 		</div>
 	</div>
+{/if}
+
+<!-- ── Saved toast ─────────────────────────────────────────────────────────── -->
+{#if savedToastVisible}
+	<div class="saved-toast">{savedToastMessage}</div>
 {/if}
 
 <!-- ── Replace confirmation modal ────────────────────────────────────────── -->
@@ -866,6 +946,7 @@
 		text-overflow: ellipsis;
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
+		line-clamp: 2;
 		-webkit-box-orient: vertical;
 	}
 
@@ -955,5 +1036,22 @@
 		color: var(--color-text-light);
 		text-align: center;
 		line-height: 1.4;
+	}
+
+	/* ── Saved toast ──────────────────────────────────────────────────────── */
+	.saved-toast {
+		position: fixed;
+		top: 16px;
+		left: 50%;
+		transform: translateX(-50%);
+		background: var(--color-primary);
+		color: #ffffff;
+		padding: 10px 20px;
+		border-radius: 20px;
+		font-size: 0.875rem;
+		font-weight: 600;
+		z-index: 200;
+		white-space: nowrap;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 	}
 </style>

@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -51,5 +52,27 @@ public class SavedProductService {
                 .build();
 
         return Optional.of(savedProductRepository.save(saved));
+    }
+
+    public List<SavedProduct> getByUser(String userId) {
+        return savedProductRepository.findByUserIdOrderBySavedAtDesc(userId);
+    }
+
+    /**
+     * Removes a saved product.
+     *
+     * @return false if the saved product does not exist, true on successful deletion
+     * @throws OwnershipException if userId does not match the saved product owner
+     */
+    public boolean unsaveProduct(String id, String userId) {
+        Optional<SavedProduct> opt = savedProductRepository.findById(id);
+        if (opt.isEmpty()) {
+            return false;
+        }
+        if (!opt.get().getUserId().equals(userId)) {
+            throw new OwnershipException("User " + userId + " does not own saved product " + id);
+        }
+        savedProductRepository.deleteById(id);
+        return true;
     }
 }
