@@ -47,7 +47,8 @@ public class ShoppingListService {
             throw new OwnershipException("User " + userId + " does not own list " + listId);
         }
 
-        list.setSupermarket(newSupermarket);
+        String normalized = newSupermarket.equalsIgnoreCase("Migros") ? "Migros" : newSupermarket.toLowerCase();
+        list.setSupermarket(normalized);
 
         List<ShoppingItem> updatedItems = list.getItems().stream().map(item -> {
             if ("C".equals(item.getType())) {
@@ -58,7 +59,7 @@ public class ShoppingListService {
             String subcategory = item.getSubcategory() != null ? item.getSubcategory() : "";
 
             List<SupermarketProduct> matches = supermarketProductRepository
-                    .findByMatchingKeyAndSupermarket(displayName, subcategory, newSupermarket);
+                    .findByMatchingKeyAndSupermarket(displayName, subcategory, normalized);
 
             if (!matches.isEmpty()) {
                 SupermarketProduct match = matches.get(0);
@@ -117,8 +118,11 @@ public class ShoppingListService {
         } else {
             String displayName = request.getDisplayName() != null ? request.getDisplayName() : "";
             String subcategory = request.getSubcategory() != null ? request.getSubcategory() : "";
+            String supermarket = list.getSupermarket();
+            String normalizedSupermarket = supermarket != null && supermarket.equalsIgnoreCase("Migros")
+                    ? "Migros" : supermarket != null ? supermarket.toLowerCase() : "";
             List<SupermarketProduct> matches = supermarketProductRepository
-                    .findByMatchingKeyAndSupermarket(displayName, subcategory, list.getSupermarket());
+                    .findByMatchingKeyAndSupermarket(displayName, subcategory, normalizedSupermarket);
             if (!matches.isEmpty()) {
                 SupermarketProduct match = matches.get(0);
                 item.setProductId(match.getId());

@@ -514,7 +514,7 @@ if (matches.length > 0) {
 					</div>
 				{/if}
 			</div>
-			<button class="icon-btn" aria-label="Gespeicherte Listen">
+			<button class="icon-btn" aria-label="Gespeicherte Listen" onclick={() => goto('/shoppinglists')}>
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
 					width="24"

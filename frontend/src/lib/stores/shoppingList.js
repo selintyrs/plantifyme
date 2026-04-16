@@ -48,3 +48,8 @@ export function updateQuantity(id, delta) {
 export function getItems() {
 	return get(shoppingListStore);
 }
+
+export function resetForLoad(storeItems) {
+	shoppingListStore.set(storeItems);
+	nextId = storeItems.length > 0 ? Math.max(...storeItems.map((i) => i.id)) + 1 : 1;
+}
