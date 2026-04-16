@@ -283,6 +283,28 @@ if (matches.length > 0) {
 		changeSupermarket(supermarketDraft);
 	}
 
+	async function syncItemToBackend(listId, entry, subcategory, quantity) {
+		try {
+			await fetch(`/api/shoppinglists/${listId}/items`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-User-Id': 'temp-user',
+				},
+				body: JSON.stringify({
+					displayName: entry.displayName,
+					subcategory: subcategory || '',
+					type: entry.type,
+					frontendDictionaryId: entry.id,
+					quantity,
+				}),
+			});
+		} catch (e) {
+			console.error('Item sync fehlgeschlagen:', e);
+			savedListId = null;
+		}
+	}
+
 	// ── Add-Product Modal ─────────────────────────────────────────────────────
 	function openModal() {
 		modalOpen = true;
@@ -296,8 +318,8 @@ if (matches.length > 0) {
 
 	async function handleEntryTap(entry) {
 		isSaved = false;
-		savedListId = null;
 		if (isAdded(entry)) {
+			savedListId = null;
 			const items = $shoppingListStore.filter(
 				(i) => i.frontendDictionaryId === entry.id,
 			);
@@ -308,12 +330,16 @@ if (matches.length > 0) {
 				}
 			});
 		} else {
+			const listIdToSync = savedListId;
 			addItem(entry, "");
 			if ($isVeganized) {
 				const added = $shoppingListStore.find(
 					(i) => i.frontendDictionaryId === entry.id,
 				);
 				if (added) await matchSingleItem(added);
+			}
+			if (listIdToSync) {
+				await syncItemToBackend(listIdToSync, entry, '', 1);
 			}
 		}
 	}
@@ -335,8 +361,10 @@ if (matches.length > 0) {
 
 	async function confirmSubcat() {
 		isSaved = false;
-		savedListId = null;
 		if (subcatEntry) {
+			const listIdToSync = savedListId;
+			const entrySnapshot = subcatEntry;
+			const subcatSnapshot = subcatSelected;
 			addItem(subcatEntry, subcatSelected);
 			if ($isVeganized) {
 				const added = $shoppingListStore.find(
@@ -345,6 +373,9 @@ if (matches.length > 0) {
 						i.subcategory === subcatSelected,
 				);
 				if (added) await matchSingleItem(added);
+			}
+			if (listIdToSync) {
+				await syncItemToBackend(listIdToSync, entrySnapshot, subcatSnapshot, 1);
 			}
 		}
 		subcatModal = false;
