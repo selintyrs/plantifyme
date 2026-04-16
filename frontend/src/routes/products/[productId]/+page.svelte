@@ -187,7 +187,7 @@
 
 	function localImageUrl(p) {
 		const sm = p.supermarket?.toLowerCase() ?? 'unknown';
-		return `/images/products/${sm}/${p.articleId}.png`;
+		return `/images/products/${sm}/${p.articleId}.jpg`;
 	}
 
 	function handleImgError() {
@@ -254,7 +254,7 @@
 
 	function altLocalImageUrl(alt) {
 		const sm = alt.supermarket?.toLowerCase() ?? 'unknown';
-		return `/images/products/${sm}/${alt.articleId}.png`;
+		return `/images/products/${sm}/${alt.articleId}.jpg`;
 	}
 
 	function handleAltImgError(altId, alt) {
