@@ -22,9 +22,12 @@ public class DiyRecipeController {
     private final DiyRecipeService diyRecipeService;
 
     @GetMapping
-    public ResponseEntity<List<DiyRecipeDto>> findByMatching(
-            @RequestParam String displayName,
-            @RequestParam(defaultValue = "") String subcategory) {
+    public ResponseEntity<List<DiyRecipeDto>> getDiyRecipes(
+            @RequestParam(required = false) String displayName,
+            @RequestParam(required = false) String subcategory) {
+        if (displayName == null || displayName.isBlank()) {
+            return ResponseEntity.ok(diyRecipeService.findAll());
+        }
         return ResponseEntity.ok(diyRecipeService.findByMatching(displayName, subcategory));
     }
 

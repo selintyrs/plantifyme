@@ -18,6 +18,13 @@ public class DiyRecipeService {
     @NonNull
     private final DiyRecipeRepository diyRecipeRepository;
 
+    public List<DiyRecipeDto> findAll() {
+        return diyRecipeRepository.findAll()
+                .stream()
+                .map(this::toDto)
+                .toList();
+    }
+
     public List<DiyRecipeDto> findByMatching(String displayName, String subcategory) {
         String sub = (subcategory == null || subcategory.isBlank()) ? "" : subcategory;
         return diyRecipeRepository.findByDisplayNameAndSubcategory(displayName, sub)
@@ -39,6 +46,7 @@ public class DiyRecipeService {
         dto.setDescription(recipe.getDescription());
         dto.setPrepTimeMin(recipe.getPrepTimeMin());
         dto.setDifficulty(recipe.getDifficulty());
+        dto.setImageUrl(recipe.getImageUrl());
         dto.setMatchingKeys(recipe.getMatchingKeys());
         dto.setIngredients(recipe.getIngredients());
         dto.setInstructions(recipe.getInstructions());
