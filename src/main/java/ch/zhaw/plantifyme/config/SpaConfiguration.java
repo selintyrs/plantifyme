@@ -9,7 +9,7 @@ public class SpaConfiguration implements WebMvcConfigurer {
 
     @Override
     public void addViewControllers(ViewControllerRegistry registry) {
-        registry.addViewController("/{path:[^\\.]*}").setViewName("forward:/index.html");
-        registry.addViewController("/**/{path:[^\\.]*}").setViewName("forward:/index.html");
+        registry.addViewController("/{path:(?!api$)[^\\.]*}").setViewName("forward:/index.html");
+        registry.addViewController("/{first:(?!api)[^\\.]*}/**").setViewName("forward:/index.html");
     }
 }
