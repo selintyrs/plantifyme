@@ -1,11 +1,14 @@
 <script>
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { recipeCreationStore } from '$lib/stores/recipeCreation.js';
 
 	let baseRecipes = $state([]);
 	let savedRecipes = $state([]);
 	let diyRecipes = $state([]);
 	let isLoading = $state(true);
+	let searchQuery = $state('');
+	let searchActive = $state(false);
 
 	onMount(async () => {
 		try {
@@ -30,6 +33,32 @@
 			.map(cat => ({ name: cat, recipes: baseRecipes.filter(r => r.category === cat) }))
 			.filter(cat => cat.recipes.length > 0);
 	});
+
+	let searchResults = $derived.by(() => {
+		if (!searchQuery || searchQuery.trim().length < 2) return [];
+		const q = searchQuery.toLowerCase().trim();
+		return baseRecipes.filter(r =>
+			r.title.toLowerCase().includes(q)
+		).slice(0, 5);
+	});
+
+	function clearSearch() {
+		searchQuery = '';
+		searchActive = false;
+	}
+
+	function goToCreate() {
+		recipeCreationStore.set({ title: '', description: searchQuery, customIngredients: [], baseRecipeId: null });
+		searchActive = false;
+		searchQuery = '';
+		goto('/rezepte/erstellen');
+	}
+
+	function goToRecipe(recipe) {
+		searchActive = false;
+		searchQuery = '';
+		goto('/rezepte/anpassen/' + recipe.id);
+	}
 </script>
 
 <div class="page">
@@ -43,16 +72,57 @@
 		</button>
 	</div>
 
-	<!-- Suchleiste (als Button) -->
-	<button class="search-bar" onclick={() => goto('/rezepte/erstellen')} aria-label="Rezept suchen oder erstellen">
-		<svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-			<circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-		</svg>
-		<span class="search-placeholder">Rezept suchen oder erstellen...</span>
-		<svg class="ai-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-			<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.582a.5.5 0 0 1 0 .963L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>
-		</svg>
-	</button>
+	<!-- Suchleiste -->
+	<div class="search-wrapper">
+		<div class="search-bar">
+			<svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+				<circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+			</svg>
+			<input
+				class="search-input"
+				type="text"
+				placeholder="Rezept suchen oder erstellen..."
+				bind:value={searchQuery}
+				onfocus={() => searchActive = true}
+				aria-label="Rezept suchen"
+				autocomplete="off"
+			/>
+			{#if searchQuery}
+				<button class="clear-btn" onclick={clearSearch} aria-label="Suche leeren">
+					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M18 6 6 18M6 6l12 12"/>
+					</svg>
+				</button>
+			{:else}
+				<svg class="ai-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.582a.5.5 0 0 1 0 .963L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>
+				</svg>
+			{/if}
+		</div>
+
+		{#if searchActive && searchQuery.trim().length >= 2}
+			<div class="search-dropdown">
+				<button class="dropdown-item dropdown-create" onclick={goToCreate}>
+					<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.582a.5.5 0 0 1 0 .963L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>
+					</svg>
+					<span class="create-label">Eigenes Rezept erstellen</span>
+				</button>
+				{#each searchResults as recipe}
+					<button class="dropdown-item" onclick={() => goToRecipe(recipe)}>
+						<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+						</svg>
+						<span class="result-label">{recipe.title}</span>
+					</button>
+				{/each}
+			</div>
+		{/if}
+	</div>
+
+	{#if searchActive && searchQuery.trim().length >= 2}
+		<div class="search-backdrop" role="presentation" onclick={clearSearch}></div>
+	{/if}
 
 	{#if isLoading}
 		<div class="spinner-wrapper">
@@ -184,18 +254,21 @@
 	}
 
 	/* Suchleiste */
+	.search-wrapper {
+		position: relative;
+		margin: 0 16px 20px;
+		z-index: 50;
+	}
+
 	.search-bar {
 		display: flex;
 		align-items: center;
 		gap: 10px;
-		margin: 0 16px 20px;
 		background: #F3F4F6;
-		border: none;
 		border-radius: 14px;
 		padding: 12px 16px;
-		width: calc(100% - 32px);
-		cursor: pointer;
-		text-align: left;
+		width: 100%;
+		box-sizing: border-box;
 	}
 
 	.search-icon {
@@ -203,15 +276,98 @@
 		flex-shrink: 0;
 	}
 
-	.search-placeholder {
+	.search-input {
 		flex: 1;
 		font-size: 0.9375rem;
+		color: var(--color-text);
+		background: transparent;
+		border: none;
+		outline: none;
+		min-width: 0;
+	}
+
+	.search-input::placeholder {
 		color: var(--color-text-light);
 	}
 
 	.ai-icon {
 		color: var(--color-primary);
 		flex-shrink: 0;
+	}
+
+	.clear-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: none;
+		border: none;
+		color: var(--color-text-light);
+		cursor: pointer;
+		padding: 0;
+		flex-shrink: 0;
+	}
+
+	/* Dropdown */
+	.search-dropdown {
+		position: absolute;
+		top: calc(100% + 6px);
+		left: 0;
+		right: 0;
+		background: white;
+		border: 1px solid var(--color-border);
+		border-radius: 14px;
+		box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+		overflow: hidden;
+		z-index: 50;
+	}
+
+	.dropdown-item {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		width: 100%;
+		padding: 12px 16px;
+		border: none;
+		border-bottom: 1px solid var(--color-border);
+		background: white;
+		cursor: pointer;
+		text-align: left;
+	}
+
+	.dropdown-item:last-child {
+		border-bottom: none;
+	}
+
+	.dropdown-item:active {
+		background: var(--color-primary-light);
+	}
+
+	.dropdown-create svg {
+		color: var(--color-primary);
+		flex-shrink: 0;
+	}
+
+	.dropdown-item:not(.dropdown-create) svg {
+		color: var(--color-text-light);
+		flex-shrink: 0;
+	}
+
+	.create-label {
+		font-size: 0.9375rem;
+		font-weight: 600;
+		color: var(--color-primary);
+	}
+
+	.result-label {
+		font-size: 0.9375rem;
+		color: var(--color-text);
+	}
+
+	/* Backdrop */
+	.search-backdrop {
+		position: fixed;
+		inset: 0;
+		z-index: 40;
 	}
 
 	/* Loading */
