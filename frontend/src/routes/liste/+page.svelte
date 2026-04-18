@@ -13,6 +13,7 @@
 		matchResults,
 		savedListId,
 		itemIdMap,
+		resetAll,
 	} from "$lib/stores/shoppingList.js";
 	import { supermarketStore } from "$lib/stores/supermarket.js";
 	import { goto } from "$app/navigation";
@@ -433,6 +434,25 @@ if (matches.length > 0) {
 		node.focus();
 	}
 
+	async function clearList() {
+		try {
+			const res = await fetch('/api/shoppinglists?userId=temp-user');
+			if (res.ok) {
+				const lists = await res.json();
+				for (const list of lists) {
+					await fetch(`/api/shoppinglists/${list.id}`, {
+						method: 'DELETE',
+						headers: { 'X-User-Id': 'temp-user' }
+					});
+				}
+			}
+		} catch (e) {
+			console.error('Listen löschen fehlgeschlagen:', e);
+		}
+		resetAll();
+		isSaved = false;
+	}
+
 	function openSaveModal() {
 		const now = new Date();
 		const dd = String(now.getDate()).padStart(2, '0');
@@ -790,6 +810,9 @@ if (matches.length > 0) {
 						{/if}
 					</svg>
 					{isSaved ? 'Gespeichert' : 'Liste speichern'}
+				</button>
+				<button class="btn-new-list" onclick={clearList}>
+					Neue Liste
 				</button>
 				<button
 					class="btn-add-round"
@@ -1653,6 +1676,22 @@ if (matches.length > 0) {
 
 	.btn-save:active {
 		background: var(--color-primary-light);
+	}
+
+	.btn-new-list {
+		flex: 1;
+		padding: 14px 16px;
+		border-radius: 14px;
+		border: 1.5px solid var(--color-border);
+		color: var(--color-text-light);
+		font-size: 0.9375rem;
+		font-weight: 600;
+		background: var(--color-bg);
+		transition: background 0.12s ease;
+	}
+
+	.btn-new-list:active {
+		background: #F3F4F6;
 	}
 
 	.btn-add-round {

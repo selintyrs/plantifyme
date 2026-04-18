@@ -2,6 +2,8 @@ package ch.zhaw.plantifyme.controller;
 
 import ch.zhaw.plantifyme.model.ShoppingList;
 import ch.zhaw.plantifyme.model.dto.AddItemRequest;
+import ch.zhaw.plantifyme.model.dto.AddRecipeIngredientsRequest;
+import ch.zhaw.plantifyme.model.dto.CreateListFromRecipeRequest;
 import ch.zhaw.plantifyme.model.dto.ReplaceItemRequest;
 import ch.zhaw.plantifyme.model.dto.ReplaceWithDiyRequest;
 import ch.zhaw.plantifyme.model.dto.SupermarketChangeRequest;
@@ -145,5 +147,26 @@ public class ShoppingListController {
         } catch (OwnershipException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
+    }
+
+    @PostMapping("/shoppinglists/{listId}/items/batch")
+    public ResponseEntity<ShoppingList> addRecipeIngredients(
+            @PathVariable String listId,
+            @RequestBody AddRecipeIngredientsRequest request,
+            @RequestHeader("X-User-Id") String userId) {
+        try {
+            ShoppingList updated = shoppingListService.addRecipeIngredients(listId, request, userId);
+            return ResponseEntity.ok(updated);
+        } catch (OwnershipException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    @PostMapping("/shoppinglists/from-recipe")
+    public ResponseEntity<ShoppingList> createFromRecipe(
+            @RequestBody CreateListFromRecipeRequest request,
+            @RequestHeader("X-User-Id") String userId) {
+        ShoppingList list = shoppingListService.createFromRecipe(request, userId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(list);
     }
 }

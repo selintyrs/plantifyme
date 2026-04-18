@@ -53,3 +53,12 @@ export function resetForLoad(storeItems) {
 	shoppingListStore.set(storeItems);
 	nextId = storeItems.length > 0 ? Math.max(...storeItems.map((i) => i.id)) + 1 : 1;
 }
+
+export function resetAll() {
+	shoppingListStore.set([]);
+	matchResults.set([]);
+	isVeganized.set(false);
+	savedListId.set(null);
+	itemIdMap.set({});
+	nextId = 1;
+}

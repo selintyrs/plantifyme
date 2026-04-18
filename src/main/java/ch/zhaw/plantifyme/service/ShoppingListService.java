@@ -7,8 +7,13 @@ import ch.zhaw.plantifyme.model.ShoppingItem;
 import ch.zhaw.plantifyme.model.ShoppingList;
 import ch.zhaw.plantifyme.model.SupermarketProduct;
 import ch.zhaw.plantifyme.model.dto.AddItemRequest;
+import ch.zhaw.plantifyme.model.dto.AddRecipeIngredientsRequest;
+import ch.zhaw.plantifyme.model.dto.CreateListFromRecipeRequest;
+import ch.zhaw.plantifyme.model.dto.RecipeIngredientItem;
 import ch.zhaw.plantifyme.model.dto.ReplaceItemRequest;
 import ch.zhaw.plantifyme.model.dto.ReplaceWithDiyRequest;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import ch.zhaw.plantifyme.repository.DiyRecipeRepository;
 import ch.zhaw.plantifyme.repository.GenericFoodRepository;
 import ch.zhaw.plantifyme.repository.ShoppingListRepository;
@@ -302,5 +307,148 @@ public class ShoppingListService {
         list.setItems(items);
         ShoppingList saved = shoppingListRepository.save(list);
         return Optional.of(saved);
+    }
+
+    public ShoppingList addRecipeIngredients(String listId, AddRecipeIngredientsRequest request, String userId) {
+        ShoppingList list = shoppingListRepository.findById(listId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "List not found: " + listId));
+
+        if (!list.getUserId().equals(userId)) {
+            throw new OwnershipException("User " + userId + " does not own list " + listId);
+        }
+
+        String supermarket = list.getSupermarket();
+        String normalized = supermarket != null && supermarket.equalsIgnoreCase("Migros")
+                ? "Migros" : supermarket != null ? supermarket.toLowerCase() : "";
+
+        String diyGroupLabel = "Zutat für " + request.getRecipeTitle();
+
+        List<ShoppingItem> items = new ArrayList<>(list.getItems() != null ? list.getItems() : List.of());
+
+        if (request.getIngredients() != null) {
+            for (RecipeIngredientItem ingredient : request.getIngredients()) {
+                if ("Wasser".equals(ingredient.getName())) {
+                    continue;
+                }
+
+                ShoppingItem newItem = new ShoppingItem();
+                newItem.setItemId(UUID.randomUUID().toString());
+                newItem.setQuantity(1);
+                newItem.setIsChecked(false);
+                newItem.setDiyGroupLabel(diyGroupLabel);
+
+                String type = ingredient.getType() != null ? ingredient.getType() : "C";
+                newItem.setType(type);
+
+                if ("A".equals(type) || "B".equals(type)) {
+                    String displayName = ingredient.getMatchingDisplayName() != null
+                            ? ingredient.getMatchingDisplayName() : "";
+                    String subcategory = ingredient.getMatchingSubcategory() != null
+                            ? ingredient.getMatchingSubcategory() : "";
+                    newItem.setDisplayName(displayName);
+                    newItem.setSubcategory(subcategory);
+
+                    List<SupermarketProduct> matches = supermarketProductRepository
+                            .findByMatchingKeyAndSupermarket(displayName, subcategory, normalized);
+                    if (!matches.isEmpty()) {
+                        SupermarketProduct match = matches.get(0);
+                        newItem.setProductId(match.getId());
+                        newItem.setName(match.getName());
+                        newItem.setPrice(match.getPrice());
+                    } else {
+                        newItem.setProductId(null);
+                        newItem.setName(ingredient.getName());
+                        newItem.setPrice(null);
+                    }
+                } else {
+                    newItem.setDisplayName(ingredient.getName());
+                    newItem.setSubcategory("");
+
+                    genericFoodRepository.findByName(ingredient.getName()).ifPresentOrElse(
+                            food -> {
+                                newItem.setGenericFoodId(food.getId());
+                                newItem.setName(food.getName());
+                            },
+                            () -> {
+                                newItem.setGenericFoodId(null);
+                                newItem.setName(ingredient.getName());
+                            }
+                    );
+                }
+
+                items.add(newItem);
+            }
+        }
+
+        list.setItems(items);
+        return shoppingListRepository.save(list);
+    }
+
+    public ShoppingList createFromRecipe(CreateListFromRecipeRequest request, String userId) {
+        String supermarket = request.getSupermarket();
+        String normalized = supermarket != null && supermarket.equalsIgnoreCase("Migros")
+                ? "Migros" : supermarket != null ? supermarket.toLowerCase() : "";
+
+        ShoppingList list = new ShoppingList();
+        list.setUserId(userId);
+        list.setName("Einkaufsliste für " + request.getRecipeTitle());
+        list.setSupermarket(supermarket);
+        list.setCreatedAt(java.time.LocalDateTime.now());
+
+        String diyGroupLabel = "Zutat für " + request.getRecipeTitle();
+        List<ShoppingItem> items = new ArrayList<>();
+
+        if (request.getIngredients() != null) {
+            for (RecipeIngredientItem ingredient : request.getIngredients()) {
+                if ("Wasser".equals(ingredient.getName())) {
+                    continue;
+                }
+
+                ShoppingItem item = new ShoppingItem();
+                item.setItemId(UUID.randomUUID().toString());
+                item.setQuantity(1);
+                item.setIsChecked(false);
+                item.setDiyGroupLabel(diyGroupLabel);
+
+                String type = ingredient.getType() != null ? ingredient.getType() : "C";
+                item.setType(type);
+
+                if ("A".equals(type) || "B".equals(type)) {
+                    String displayName = ingredient.getMatchingDisplayName() != null
+                            ? ingredient.getMatchingDisplayName() : "";
+                    String subcategory = ingredient.getMatchingSubcategory() != null
+                            ? ingredient.getMatchingSubcategory() : "";
+                    item.setDisplayName(displayName);
+                    item.setSubcategory(subcategory);
+
+                    List<SupermarketProduct> matches = supermarketProductRepository
+                            .findByMatchingKeyAndSupermarket(displayName, subcategory, normalized);
+                    if (!matches.isEmpty()) {
+                        SupermarketProduct match = matches.get(0);
+                        item.setProductId(match.getId());
+                        item.setName(match.getName());
+                        item.setPrice(match.getPrice());
+                    } else {
+                        item.setName(ingredient.getName());
+                    }
+                } else {
+                    item.setDisplayName(ingredient.getName());
+                    item.setSubcategory("");
+
+                    genericFoodRepository.findByName(ingredient.getName()).ifPresentOrElse(
+                            food -> {
+                                item.setGenericFoodId(food.getId());
+                                item.setName(food.getName());
+                            },
+                            () -> item.setName(ingredient.getName())
+                    );
+                }
+
+                items.add(item);
+            }
+        }
+
+        list.setItems(items);
+        return shoppingListRepository.save(list);
     }
 }

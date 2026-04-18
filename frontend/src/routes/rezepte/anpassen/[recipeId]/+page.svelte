@@ -41,13 +41,19 @@
 			isLoading = false;
 		} else {
 			try {
-				const res = await fetch(`/api/base-recipes/${id}`);
+				let res = await fetch(`/api/base-recipes/${id}`);
 				if (res.ok) {
 					baseRecipe = await res.json();
 					recipeName = baseRecipe.title;
+				} else {
+					res = await fetch(`/api/saved-recipes/${id}`);
+					if (res.ok) {
+						baseRecipe = await res.json();
+						recipeName = baseRecipe.title;
+					}
 				}
 			} catch (e) {
-				console.error('Base recipe laden fehlgeschlagen:', e);
+				console.error('Rezept laden fehlgeschlagen:', e);
 			} finally {
 				isLoading = false;
 			}

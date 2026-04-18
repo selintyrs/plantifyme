@@ -198,6 +198,7 @@
 		}
 	}
 
+
 	async function loadAlternatives(filter = null) {
 		alternativesLoading = true;
 		alternatives = null;
