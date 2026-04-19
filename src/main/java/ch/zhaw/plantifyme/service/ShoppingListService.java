@@ -45,6 +45,9 @@ public class ShoppingListService {
     @Autowired
     private FrontendDictionaryRepository frontendDictionaryRepository;
 
+    @Autowired
+    private GenericFoodService genericFoodService;
+
     /**
      * Changes the supermarket of a shopping list and re-matches all type A/B items
      * to products available at the new supermarket.
@@ -497,34 +500,6 @@ public class ShoppingListService {
     }
 
     private GenericFood findGenericFoodFlexible(String ingredientName) {
-        if (ingredientName == null || ingredientName.isBlank()) return null;
-
-        Optional<GenericFood> exact = genericFoodRepository.findByName(ingredientName);
-        if (exact.isPresent()) return exact.get();
-
-        String cleaned = ingredientName
-                .replaceAll("\\(.*?\\)", "")
-                .replaceAll("(?i)^frische[sr]?\\s+", "")
-                .replaceAll("(?i)^schwarze[sr]?\\s+", "")
-                .replaceAll("(?i)zehen$", "")
-                .replaceAll("(?i)saft$", "")
-                .trim();
-
-        if (!cleaned.equals(ingredientName)) {
-            Optional<GenericFood> cleanedMatch = genericFoodRepository.findByName(cleaned);
-            if (cleanedMatch.isPresent()) return cleanedMatch.get();
-        }
-
-        List<GenericFood> regexResults = genericFoodRepository.findByNameContainingIgnoreCase(cleaned);
-        if (!regexResults.isEmpty()) return regexResults.get(0);
-
-        String[] words = cleaned.split("\\s+");
-        for (String word : words) {
-            if (word.length() < 4) continue;
-            regexResults = genericFoodRepository.findByNameContainingIgnoreCase(word);
-            if (!regexResults.isEmpty()) return regexResults.get(0);
-        }
-
-        return null;
+        return genericFoodService.findFlexible(ingredientName).orElse(null);
     }
 }

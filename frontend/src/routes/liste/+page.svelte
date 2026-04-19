@@ -753,14 +753,25 @@ if (matches.length > 0) {
 												>
 											</button>
 										</div>
-										{#if result.suggestedProduct || (result.type === 'C' && result.genericFood)}
-											<button
-												class="chevron-btn"
-												aria-label="Details"
-												onclick={() => result.type === 'C'
-													? goto(`/products/${result.genericFood.id}?type=C`)
-													: goto(`/products/${result.suggestedProduct.id}`)}
-											>
+										<button
+											class="chevron-btn"
+											aria-label="Details"
+											onclick={async () => {
+												try {
+													if (result.suggestedProduct) {
+														goto(`/products/${result.suggestedProduct.id}`);
+													} else if (result.genericFood) {
+														goto(`/products/${result.genericFood.id}?type=C`);
+													} else {
+														const res = await fetch('/api/generic-foods/search?name=' + encodeURIComponent(result.displayName));
+														if (res.ok) {
+															const food = await res.json();
+															goto(`/products/${food.id}?type=C`);
+														}
+													}
+												} catch {}
+											}}
+										>
 												<svg
 													xmlns="http://www.w3.org/2000/svg"
 													width="18"
@@ -776,8 +787,7 @@ if (matches.length > 0) {
 													/></svg
 												>
 											</button>
-										{/if}
-									{/if}
+								{/if}
 								</div>
 							</div>
 						{/each}
