@@ -26,6 +26,8 @@
 	let saveListName = $state('');
 	let isSaved = $state(false);
 	let saveToastVisible = $state(false);
+	let newListModalOpen = $state(false);
+	let clearAfterSave = $state(false);
 
 	// ── Modal state ───────────────────────────────────────────────────────────
 	let modalOpen = $state(false);
@@ -508,6 +510,7 @@ if (matches.length > 0) {
 			isSaved = true;
 			saveToastVisible = true;
 			setTimeout(() => { saveToastVisible = false; }, 1500);
+			if (clearAfterSave) { clearList(); clearAfterSave = false; }
 		} catch (e) {
 			console.error('Liste speichern fehlgeschlagen:', e);
 		}
@@ -822,7 +825,7 @@ if (matches.length > 0) {
 					</svg>
 					{isSaved ? 'Gespeichert' : 'Liste speichern'}
 				</button>
-				<button class="btn-new-list" onclick={clearList}>
+				<button class="btn-new-list" onclick={() => { newListModalOpen = true; }}>
 					<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
 					Neue Liste
 				</button>
@@ -1338,6 +1341,22 @@ if (matches.length > 0) {
 {/if}
 
 <!-- ══════════════════════════════════════════════════ SAVE LIST MODAL ══════ -->
+{#if newListModalOpen}
+	<div class="backdrop backdrop-blur" onclick={() => { newListModalOpen = false; }} role="presentation"></div>
+	<div class="supermarket-dialog" role="dialog" aria-modal="true">
+		<h2 class="sm-title">Neue Liste starten</h2>
+		<p class="sm-sub">Was möchtest du mit deiner aktuellen Liste tun?</p>
+		{#if !isSaved}
+			<button class="btn-primary new-list-btn" onclick={() => { newListModalOpen = false; clearAfterSave = true; openSaveModal(); }}>Liste speichern</button>
+			<button class="new-list-delete-btn" onclick={() => { newListModalOpen = false; clearList(); }}>Liste löschen</button>
+			<button class="btn-text" onclick={() => { newListModalOpen = false; }}>Abbrechen</button>
+		{:else}
+			<button class="btn-primary new-list-btn" onclick={() => { newListModalOpen = false; clearList(); }}>Neue Liste starten</button>
+			<button class="btn-text" onclick={() => { newListModalOpen = false; }}>Abbrechen</button>
+		{/if}
+	</div>
+{/if}
+
 {#if saveModalOpen}
 	<div class="backdrop backdrop-blur" onclick={() => { saveModalOpen = false; }} role="presentation"></div>
 	<div class="supermarket-dialog" role="dialog" aria-modal="true">
@@ -1976,6 +1995,27 @@ if (matches.length > 0) {
 
 	.btn-text:active {
 		color: var(--color-text);
+	}
+
+	.new-list-btn {
+		margin-top: 4px;
+	}
+
+	.new-list-delete-btn {
+		padding: 12px;
+		border-radius: 10px;
+		border: 1.5px solid #ef4444;
+		color: #ef4444;
+		font-size: 0.9375rem;
+		font-weight: 600;
+		width: 100%;
+		text-align: center;
+		background: transparent;
+		transition: background 0.12s ease;
+	}
+
+	.new-list-delete-btn:active {
+		background: #fef2f2;
 	}
 
 	/* ── Subcategory dialog ───────────────────────────────────────────────── */
