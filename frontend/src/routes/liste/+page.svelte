@@ -16,6 +16,7 @@
 		resetAll,
 	} from "$lib/stores/shoppingList.js";
 	import { supermarketStore } from "$lib/stores/supermarket.js";
+	import { recentProducts, addRecentProduct } from "$lib/stores/recentProducts.js";
 	import { goto } from "$app/navigation";
 
 	// ── Core state ────────────────────────────────────────────────────────────
@@ -32,6 +33,8 @@
 	// ── Modal state ───────────────────────────────────────────────────────────
 	let modalOpen = $state(false);
 	let query = $state("");
+	let modalTab = $state('kategorien');
+	let selectedCategory = $state(null);
 
 	// ── Supermarkt Modal ──────────────────────────────────────────────────────
 	let supermarketModalOpen = $state(false);
@@ -314,11 +317,14 @@ if (matches.length > 0) {
 	function openModal() {
 		modalOpen = true;
 		query = "";
+		modalTab = 'kategorien';
+		selectedCategory = null;
 	}
 
 	function closeModal() {
 		modalOpen = false;
 		query = "";
+		selectedCategory = null;
 	}
 
 	async function handleEntryTap(entry) {
@@ -335,6 +341,7 @@ if (matches.length > 0) {
 				}
 			});
 		} else {
+			addRecentProduct(entry);
 			const listIdToSync = $savedListId;
 			addItem(entry, "");
 			if ($isVeganized) {
@@ -367,6 +374,7 @@ if (matches.length > 0) {
 	async function confirmSubcat() {
 		isSaved = false;
 		if (subcatEntry) {
+			addRecentProduct(subcatEntry);
 			const listIdToSync = $savedListId;
 			const entrySnapshot = subcatEntry;
 			const subcatSnapshot = subcatSelected;
@@ -1153,68 +1161,107 @@ if (matches.length > 0) {
 			/>
 		</div>
 
+		{#snippet entryItem(entry)}
+			{@const added = isAdded(entry)}
+			<button
+				class="entry-row"
+				class:entry-added={added}
+				onclick={() => handleEntryTap(entry)}
+				onmousedown={() => startLongPress(entry)}
+				onmouseup={cancelLongPress}
+				onmouseleave={cancelLongPress}
+				ontouchstart={() => startLongPress(entry)}
+				ontouchend={cancelLongPress}
+			>
+				<span class="entry-name">{entry.displayName}</span>
+				<span class="entry-action">
+					{#if added}
+						<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+					{:else}
+						<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+					{/if}
+				</span>
+			</button>
+		{/snippet}
+
+		{#if !query}
+			<div class="sheet-tabs">
+				<button class="sheet-tab" class:tab-active={modalTab === 'zuletzt'} onclick={() => { modalTab = 'zuletzt'; selectedCategory = null; }}>Zuletzt</button>
+				<button class="sheet-tab" class:tab-active={modalTab === 'kategorien'} onclick={() => { modalTab = 'kategorien'; selectedCategory = null; }}>Kategorien</button>
+			</div>
+		{/if}
+
 		<div class="sheet-body">
-			{#each Object.entries(grouped) as [category, entries]}
-				<div class="modal-category">
-					<p class="modal-cat-label">{category}</p>
-					{#each entries as entry, i (i)}
-						{@const added = isAdded(entry)}
-						<button
-							class="entry-row"
-							class:entry-added={added}
-							onclick={() => handleEntryTap(entry)}
-							onmousedown={() => startLongPress(entry)}
-							onmouseup={cancelLongPress}
-							onmouseleave={cancelLongPress}
-							ontouchstart={() => startLongPress(entry)}
-							ontouchend={cancelLongPress}
-						>
-							<span class="entry-name">{entry.displayName}</span>
-							<span class="entry-action">
-								{#if added}
-									<svg
-										xmlns="http://www.w3.org/2000/svg"
-										width="18"
-										height="18"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										stroke-width="2.5"
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										><polyline
-											points="20 6 9 17 4 12"
-										/></svg
-									>
-								{:else}
-									<svg
-										xmlns="http://www.w3.org/2000/svg"
-										width="18"
-										height="18"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										stroke-width="2.5"
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										><line
-											x1="12"
-											y1="5"
-											x2="12"
-											y2="19"
-										/><line
-											x1="5"
-											y1="12"
-											x2="19"
-											y2="12"
-										/></svg
-									>
-								{/if}
-							</span>
-						</button>
+			{#if query}
+				{#each Object.entries(grouped) as [category, entries]}
+					<div class="modal-category">
+						<p class="modal-cat-label">{category}</p>
+						{#each entries as entry, i (i)}
+							{@render entryItem(entry)}
+						{/each}
+					</div>
+				{/each}
+			{:else if modalTab === 'kategorien'}
+				{#if selectedCategory}
+					<div class="cat-breadcrumb">
+						<button class="breadcrumb-back" onclick={() => selectedCategory = null}>Kategorien</button>
+						<span class="breadcrumb-sep">›</span>
+						<span class="breadcrumb-current">{selectedCategory}</span>
+					</div>
+					{#each $dictionaryStore.filter(e => e.uiCategory === selectedCategory) as entry, i (i)}
+						{@render entryItem(entry)}
 					{/each}
-				</div>
-			{/each}
+				{:else}
+					<div class="cat-grid">
+						<button class="cat-card" onclick={() => selectedCategory = 'Obst & Gemüse'}>
+							<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>
+							<span class="cat-card-name">Obst & Gemüse</span>
+						</button>
+						<button class="cat-card" onclick={() => selectedCategory = 'Brot & Backwaren'}>
+							<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11h18a1 1 0 0 1 1 1v3a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4v-3a1 1 0 0 1 1-1z"/><path d="M3 11a7 7 0 0 1 14 0"/></svg>
+							<span class="cat-card-name">Brot & Backwaren</span>
+						</button>
+						<button class="cat-card" onclick={() => selectedCategory = 'Milchprodukte & Ei-Ersatz'}>
+							<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+							<span class="cat-card-name">Milchprodukte & Ei-Ersatz</span>
+						</button>
+						<button class="cat-card" onclick={() => selectedCategory = 'Fleisch- & Fischalternativen'}>
+							<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2s2-.9 2-2V2"/><line x1="4" y1="8" x2="4" y2="22"/><line x1="20" y1="5" x2="20" y2="22"/><path d="M20 5a2 2 0 0 0-2 2v3a2 2 0 0 0 4 0V7a2 2 0 0 0-2-2z"/></svg>
+							<span class="cat-card-name">Fleisch- & Fischalternativen</span>
+						</button>
+						<button class="cat-card" onclick={() => selectedCategory = 'Saucen & Gewürze'}>
+							<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6"/><path d="M8 3c-2 1-3 3-3 6v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9c0-3-1-5-3-6"/><line x1="5" y1="13" x2="19" y2="13"/></svg>
+							<span class="cat-card-name">Saucen & Gewürze</span>
+						</button>
+						<button class="cat-card" onclick={() => selectedCategory = 'Fertig & Tiefkühl'}>
+							<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><path d="m20 16-4-4 4-4"/><path d="m4 8 4 4-4 4"/><path d="m16 4-4 4-4-4"/><path d="m8 20 4-4 4 4"/></svg>
+							<span class="cat-card-name">Fertig & Tiefkühl</span>
+						</button>
+						<button class="cat-card" onclick={() => selectedCategory = 'Teigwaren & Getreide'}>
+							<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 22 16 8"/><path d="M3.47 12.53 5 11l1.53 1.53a3.5 3.5 0 0 1 0 4.94L5 19l-1.53-1.53a3.5 3.5 0 0 1 0-4.94z"/><path d="M7.47 8.53 9 7l1.53 1.53a3.5 3.5 0 0 1 0 4.94L9 15l-1.53-1.53a3.5 3.5 0 0 1 0-4.94z"/><path d="M11.47 4.53 13 3l1.53 1.53a3.5 3.5 0 0 1 0 4.94L13 11l-1.53-1.53a3.5 3.5 0 0 1 0-4.94z"/></svg>
+							<span class="cat-card-name">Teigwaren & Getreide</span>
+						</button>
+						<button class="cat-card" onclick={() => selectedCategory = 'Snacks & Süsswaren'}>
+							<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="8" cy="9" r="1"/><circle cx="15" cy="9" r="1"/><circle cx="10" cy="14" r="1"/><circle cx="15" cy="14" r="1"/></svg>
+							<span class="cat-card-name">Snacks & Süsswaren</span>
+						</button>
+						<button class="cat-card" onclick={() => selectedCategory = 'Getränke'}>
+							<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V8z"/><line x1="6" y1="2" x2="6" y2="4"/><line x1="10" y1="2" x2="10" y2="4"/><line x1="14" y1="2" x2="14" y2="4"/></svg>
+							<span class="cat-card-name">Getränke</span>
+						</button>
+					</div>
+				{/if}
+			{:else if modalTab === 'zuletzt'}
+				{#if $recentProducts.length === 0}
+					<div class="empty-tab">
+						<p class="empty-tab-text">Noch keine kürzlich verwendeten Produkte</p>
+					</div>
+				{:else}
+					{#each $recentProducts as entry, i (entry.id)}
+						{@render entryItem(entry)}
+					{/each}
+				{/if}
+			{/if}
 		</div>
 
 		<button class="sheet-fab" onclick={closeModal} aria-label="Schliessen">
@@ -1867,6 +1914,112 @@ if (matches.length > 0) {
 		color: var(--color-primary);
 		display: flex;
 		align-items: center;
+	}
+
+	/* ── Modal tabs ───────────────────────────────────────────────────────── */
+	.sheet-tabs {
+		display: flex;
+		border-bottom: 1px solid var(--color-border);
+		padding: 0 16px;
+		flex-shrink: 0;
+	}
+
+	.sheet-tab {
+		flex: 1;
+		padding: 10px 0;
+		font-size: 0.875rem;
+		font-weight: 500;
+		color: var(--color-text-light);
+		background: none;
+		border: none;
+		border-bottom: 2px solid transparent;
+		cursor: pointer;
+		transition: color 0.12s ease, border-color 0.12s ease;
+	}
+
+	.tab-active {
+		font-weight: 700;
+		color: var(--color-primary);
+		border-bottom-color: var(--color-primary);
+	}
+
+	/* ── Category grid ────────────────────────────────────────────────────── */
+	.cat-grid {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 8px;
+		padding: 12px 16px;
+	}
+
+	.cat-card {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		min-height: 80px;
+		padding: 10px 6px;
+		border-radius: 14px;
+		border: 1.5px solid var(--color-border);
+		background: var(--color-bg);
+		cursor: pointer;
+		text-align: center;
+		transition: border-color 0.12s ease, background 0.12s ease;
+		color: var(--color-text-light);
+	}
+
+	.cat-card:active {
+		border-color: var(--color-primary);
+		background: var(--color-primary-light);
+	}
+
+	.cat-card-name {
+		font-size: 0.6875rem;
+		color: var(--color-text);
+		font-weight: 500;
+		margin-top: 8px;
+		line-height: 1.3;
+		word-break: break-word;
+	}
+
+	/* ── Category breadcrumb ──────────────────────────────────────────────── */
+	.cat-breadcrumb {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		padding: 8px 0 12px;
+		font-size: 0.8125rem;
+	}
+
+	.breadcrumb-back {
+		color: var(--color-primary);
+		font-size: 0.8125rem;
+		font-weight: 500;
+		background: none;
+		border: none;
+		cursor: pointer;
+		padding: 0;
+	}
+
+	.breadcrumb-sep {
+		color: var(--color-text-light);
+	}
+
+	.breadcrumb-current {
+		color: var(--color-text);
+		font-weight: 600;
+	}
+
+	/* ── Empty tab ────────────────────────────────────────────────────────── */
+	.empty-tab {
+		display: flex;
+		justify-content: center;
+		padding: 48px 16px;
+	}
+
+	.empty-tab-text {
+		font-size: 0.875rem;
+		color: var(--color-text-light);
+		text-align: center;
 	}
 
 	.sheet-fab {
