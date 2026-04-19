@@ -240,7 +240,8 @@ if (matches.length > 0) {
 				itemId: listItem ? listItem.id.toString() : item.itemId,
 				type: item.type,
 				displayName: item.displayName ?? '',
-				uiCategory: listItem?.uiCategory ?? existingMatch?.uiCategory ?? 'Sonstiges',
+				uiCategory: item.uiCategory || (listItem?.uiCategory ?? existingMatch?.uiCategory ?? 'Sonstiges'),
+				diyGroupLabel: item.diyGroupLabel || existingMatch?.diyGroupLabel || null,
 				suggestedProduct: item.type !== 'C' && item.productId
 					? { id: item.productId, name: item.name, price: item.price }
 					: null,

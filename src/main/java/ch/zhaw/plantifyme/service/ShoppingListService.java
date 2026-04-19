@@ -83,9 +83,17 @@ public class ShoppingListService {
                 item.setName(match.getName());
                 item.setPrice(match.getPrice());
             } else {
+                item.setType("C");
                 item.setProductId(null);
-                item.setName(displayName);
                 item.setPrice(null);
+                GenericFood fallback = findGenericFoodFlexible(displayName);
+                if (fallback != null) {
+                    item.setGenericFoodId(fallback.getId());
+                    item.setName(fallback.getName());
+                    item.setUiCategory(fallback.getCategory());
+                } else {
+                    item.setName(displayName);
+                }
             }
 
             return item;
