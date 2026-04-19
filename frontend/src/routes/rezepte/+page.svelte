@@ -34,6 +34,17 @@
 			.filter(cat => cat.recipes.length > 0);
 	});
 
+	function categoryToId(name) {
+		const map = {
+			'Schweizer Küche': 'schweizer-kueche',
+			'Pasta & Pizza': 'pasta-pizza',
+			'Asiatische Küche': 'asiatische-kueche',
+			'Frühstück & Brunch': 'fruehstueck-brunch',
+			'Comfort Food': 'comfort-food'
+		};
+		return map[name] || name.toLowerCase().replace(/\s+/g, '-');
+	}
+
 	let searchResults = $derived.by(() => {
 		if (!searchQuery || searchQuery.trim().length < 2) return [];
 		const q = searchQuery.toLowerCase().trim();
@@ -160,7 +171,7 @@
 		<section class="section">
 			<div class="section-header">
 				<span class="section-title">Pflanzliche Basics</span>
-				<button class="see-all" onclick={() => goto('/rezepte/diy')}>Alle ansehen ›</button>
+				<button class="see-all" onclick={() => goto('/rezepte/kategorie/pflanzliche-basics')}>Alle ansehen ›</button>
 			</div>
 			<div class="scroll-row">
 				{#each diyRecipes as recipe}
@@ -191,7 +202,7 @@
 			<section class="section">
 				<div class="section-header">
 					<span class="section-title">{cat.name}</span>
-					<button class="see-all" onclick={() => goto('/rezepte/kategorie/' + encodeURIComponent(cat.name))}>Alle ansehen ›</button>
+					<button class="see-all" onclick={() => goto('/rezepte/kategorie/' + categoryToId(cat.name))}>Alle ansehen ›</button>
 				</div>
 				<div class="scroll-row">
 					{#each cat.recipes as recipe}
