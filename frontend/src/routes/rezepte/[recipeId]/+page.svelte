@@ -120,6 +120,8 @@
 	}
 
 	function findUiCategory(item) {
+		if (item.uiCategory && item.uiCategory !== '') return item.uiCategory;
+
 		const dict = $dictionaryStore;
 		if (dict && dict.length > 0) {
 			const entry = dict.find(e => e.displayName === item.displayName);

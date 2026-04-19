@@ -8,4 +8,6 @@ import java.util.Optional;
 public interface FrontendDictionaryRepository extends MongoRepository<FrontendDictionary, String> {
 
     Optional<FrontendDictionary> findFirstByType(String type);
+
+    Optional<FrontendDictionary> findByDisplayName(String displayName);
 }

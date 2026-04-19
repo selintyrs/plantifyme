@@ -15,6 +15,7 @@ import ch.zhaw.plantifyme.model.dto.ReplaceWithDiyRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 import ch.zhaw.plantifyme.repository.DiyRecipeRepository;
+import ch.zhaw.plantifyme.repository.FrontendDictionaryRepository;
 import ch.zhaw.plantifyme.repository.GenericFoodRepository;
 import ch.zhaw.plantifyme.repository.ShoppingListRepository;
 import ch.zhaw.plantifyme.repository.SupermarketProductRepository;
@@ -40,6 +41,9 @@ public class ShoppingListService {
 
     @Autowired
     private DiyRecipeRepository diyRecipeRepository;
+
+    @Autowired
+    private FrontendDictionaryRepository frontendDictionaryRepository;
 
     /**
      * Changes the supermarket of a shopping list and re-matches all type A/B items
@@ -356,26 +360,33 @@ public class ShoppingListService {
                         newItem.setName(match.getName());
                         newItem.setPrice(match.getPrice());
                     } else {
-                        newItem.setProductId(null);
-                        newItem.setName(ingredient.getName());
-                        newItem.setPrice(null);
+                        newItem.setType("C");
+                        newItem.setDisplayName(ingredient.getName());
+                        newItem.setSubcategory("");
+                        GenericFood fallbackFood = findGenericFoodFlexible(ingredient.getName());
+                        if (fallbackFood != null) {
+                            newItem.setGenericFoodId(fallbackFood.getId());
+                            newItem.setName(fallbackFood.getName());
+                        } else {
+                            newItem.setGenericFoodId(null);
+                            newItem.setName(ingredient.getName());
+                        }
                     }
                 } else {
                     newItem.setDisplayName(ingredient.getName());
                     newItem.setSubcategory("");
 
-                    genericFoodRepository.findByName(ingredient.getName()).ifPresentOrElse(
-                            food -> {
-                                newItem.setGenericFoodId(food.getId());
-                                newItem.setName(food.getName());
-                            },
-                            () -> {
-                                newItem.setGenericFoodId(null);
-                                newItem.setName(ingredient.getName());
-                            }
-                    );
+                    GenericFood genericFood = findGenericFoodFlexible(ingredient.getName());
+                    if (genericFood != null) {
+                        newItem.setGenericFoodId(genericFood.getId());
+                        newItem.setName(genericFood.getName());
+                    } else {
+                        newItem.setGenericFoodId(null);
+                        newItem.setName(ingredient.getName());
+                    }
                 }
 
+                newItem.setUiCategory(resolveUiCategory(newItem.getType(), newItem.getDisplayName(), newItem.getGenericFoodId()));
                 items.add(newItem);
             }
         }
@@ -429,26 +440,83 @@ public class ShoppingListService {
                         item.setName(match.getName());
                         item.setPrice(match.getPrice());
                     } else {
-                        item.setName(ingredient.getName());
+                        item.setType("C");
+                        item.setDisplayName(ingredient.getName());
+                        item.setSubcategory("");
+                        GenericFood fallbackFood = findGenericFoodFlexible(ingredient.getName());
+                        if (fallbackFood != null) {
+                            item.setGenericFoodId(fallbackFood.getId());
+                            item.setName(fallbackFood.getName());
+                        } else {
+                            item.setName(ingredient.getName());
+                        }
                     }
                 } else {
                     item.setDisplayName(ingredient.getName());
                     item.setSubcategory("");
 
-                    genericFoodRepository.findByName(ingredient.getName()).ifPresentOrElse(
-                            food -> {
-                                item.setGenericFoodId(food.getId());
-                                item.setName(food.getName());
-                            },
-                            () -> item.setName(ingredient.getName())
-                    );
+                    GenericFood genericFood = findGenericFoodFlexible(ingredient.getName());
+                    if (genericFood != null) {
+                        item.setGenericFoodId(genericFood.getId());
+                        item.setName(genericFood.getName());
+                    } else {
+                        item.setName(ingredient.getName());
+                    }
                 }
 
+                item.setUiCategory(resolveUiCategory(item.getType(), item.getDisplayName(), item.getGenericFoodId()));
                 items.add(item);
             }
         }
 
         list.setItems(items);
         return shoppingListRepository.save(list);
+    }
+
+    private String resolveUiCategory(String type, String displayName, String genericFoodId) {
+        if ("C".equals(type)) {
+            if (genericFoodId != null) {
+                return genericFoodRepository.findById(genericFoodId)
+                        .map(GenericFood::getCategory)
+                        .orElse("Sonstiges");
+            }
+            GenericFood food = findGenericFoodFlexible(displayName);
+            return food != null ? food.getCategory() : "Sonstiges";
+        }
+        return frontendDictionaryRepository.findByDisplayName(displayName)
+                .map(ch.zhaw.plantifyme.model.FrontendDictionary::getUiCategory)
+                .orElse("Sonstiges");
+    }
+
+    private GenericFood findGenericFoodFlexible(String ingredientName) {
+        if (ingredientName == null || ingredientName.isBlank()) return null;
+
+        Optional<GenericFood> exact = genericFoodRepository.findByName(ingredientName);
+        if (exact.isPresent()) return exact.get();
+
+        String cleaned = ingredientName
+                .replaceAll("\\(.*?\\)", "")
+                .replaceAll("(?i)^frische[sr]?\\s+", "")
+                .replaceAll("(?i)^schwarze[sr]?\\s+", "")
+                .replaceAll("(?i)zehen$", "")
+                .replaceAll("(?i)saft$", "")
+                .trim();
+
+        if (!cleaned.equals(ingredientName)) {
+            Optional<GenericFood> cleanedMatch = genericFoodRepository.findByName(cleaned);
+            if (cleanedMatch.isPresent()) return cleanedMatch.get();
+        }
+
+        List<GenericFood> regexResults = genericFoodRepository.findByNameContainingIgnoreCase(cleaned);
+        if (!regexResults.isEmpty()) return regexResults.get(0);
+
+        String[] words = cleaned.split("\\s+");
+        for (String word : words) {
+            if (word.length() < 4) continue;
+            regexResults = genericFoodRepository.findByNameContainingIgnoreCase(word);
+            if (!regexResults.isEmpty()) return regexResults.get(0);
+        }
+
+        return null;
     }
 }

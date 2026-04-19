@@ -46,6 +46,10 @@ public class PlantifyMatchService {
 
                 if (!candidates.isEmpty()) {
                     result.setSuggestedProduct(candidates.get(0));
+                } else {
+                    result.setType("C");
+                    genericFoodRepository.findByName(item.getDisplayName())
+                            .ifPresent(result::setGenericFood);
                 }
             }
 
