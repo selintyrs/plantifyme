@@ -17,8 +17,8 @@ public class GenericFoodService {
     public Optional<GenericFood> findFlexible(String ingredientName) {
         if (ingredientName == null || ingredientName.isBlank()) return Optional.empty();
 
-        Optional<GenericFood> exact = genericFoodRepository.findByName(ingredientName);
-        if (exact.isPresent()) return exact;
+        List<GenericFood> exactResults = genericFoodRepository.findByName(ingredientName);
+        if (!exactResults.isEmpty()) return Optional.of(exactResults.get(0));
 
         String cleaned = ingredientName
                 .replaceAll("\\(.*?\\)", "")
@@ -29,8 +29,8 @@ public class GenericFoodService {
                 .trim();
 
         if (!cleaned.equals(ingredientName)) {
-            Optional<GenericFood> cleanedMatch = genericFoodRepository.findByName(cleaned);
-            if (cleanedMatch.isPresent()) return cleanedMatch;
+            List<GenericFood> cleanedResults = genericFoodRepository.findByName(cleaned);
+            if (!cleanedResults.isEmpty()) return Optional.of(cleanedResults.get(0));
         }
 
         List<GenericFood> regexResults = genericFoodRepository.findByNameContainingIgnoreCase(cleaned);

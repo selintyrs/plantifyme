@@ -303,16 +303,15 @@ public class ShoppingListService {
                     newItem.setSubcategory("");
                     newItem.setType("C");
 
-                    genericFoodRepository.findByName(ingredient.getName()).ifPresentOrElse(
-                            food -> {
-                                newItem.setGenericFoodId(food.getId());
-                                newItem.setName(food.getName());
-                            },
-                            () -> {
-                                newItem.setGenericFoodId(null);
-                                newItem.setName(ingredient.getName());
-                            }
-                    );
+                    List<GenericFood> nameMatches = genericFoodRepository.findByName(ingredient.getName());
+                    if (!nameMatches.isEmpty()) {
+                        GenericFood food = nameMatches.get(0);
+                        newItem.setGenericFoodId(food.getId());
+                        newItem.setName(food.getName());
+                    } else {
+                        newItem.setGenericFoodId(null);
+                        newItem.setName(ingredient.getName());
+                    }
                 }
 
                 items.add(newItem);

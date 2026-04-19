@@ -1,5 +1,6 @@
 package ch.zhaw.plantifyme.service;
 
+import ch.zhaw.plantifyme.model.GenericFood;
 import ch.zhaw.plantifyme.model.SupermarketProduct;
 import ch.zhaw.plantifyme.model.dto.MatchPreferences;
 import ch.zhaw.plantifyme.model.dto.MatchRequestItem;
@@ -48,8 +49,8 @@ public class PlantifyMatchService {
                     result.setSuggestedProduct(candidates.get(0));
                 } else {
                     result.setType("C");
-                    genericFoodRepository.findByName(item.getDisplayName())
-                            .ifPresent(result::setGenericFood);
+                    List<GenericFood> nameMatches = genericFoodRepository.findByName(item.getDisplayName());
+                    if (!nameMatches.isEmpty()) result.setGenericFood(nameMatches.get(0));
                 }
             }
 

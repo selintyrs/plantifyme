@@ -11,7 +11,7 @@ public interface GenericFoodRepository extends MongoRepository<GenericFood, Stri
 
     Optional<GenericFood> findByFrontendDictionaryId(String frontendDictionaryId);
 
-    Optional<GenericFood> findByName(String name);
+    List<GenericFood> findByName(String name);
 
     @Query("{ 'name': { $regex: ?0, $options: 'i' } }")
     List<GenericFood> findByNameContainingIgnoreCase(String name);

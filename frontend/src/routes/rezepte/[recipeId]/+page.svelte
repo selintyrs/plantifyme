@@ -230,6 +230,8 @@
 		supermarketModalOpen = false;
 		addedToListVisible = true;
 
+		const apiSupermarket = supermarket === 'Migros' ? 'Migros' : supermarket.toLowerCase();
+
 		try {
 			await fetch(`/api/saved-recipes/${recipeId}/save`, { method: 'POST' });
 			isSaved = true;
@@ -239,7 +241,7 @@
 			const res = await fetch('/api/shoppinglists/from-recipe', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', 'X-User-Id': 'temp-user' },
-				body: JSON.stringify({ recipeTitle: recipe.title, supermarket, ingredients: selectedIngredients })
+				body: JSON.stringify({ recipeTitle: recipe.title, supermarket: apiSupermarket, ingredients: selectedIngredients })
 			});
 			if (res.ok) {
 				const newList = await res.json();
@@ -337,13 +339,13 @@
 						<path d="m9 18 6-6-6-6"/>
 					</svg>
 				</button>
-				<button class="supermarket-btn" onclick={() => createListFromRecipe('coop')}>
+				<button class="supermarket-btn" onclick={() => createListFromRecipe('Coop')}>
 					<span class="supermarket-name">Coop</span>
 					<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 						<path d="m9 18 6-6-6-6"/>
 					</svg>
 				</button>
-				<button class="supermarket-btn" onclick={() => createListFromRecipe('aldi')}>
+				<button class="supermarket-btn" onclick={() => createListFromRecipe('Aldi')}>
 					<span class="supermarket-name">Aldi</span>
 					<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 						<path d="m9 18 6-6-6-6"/>
