@@ -1,5 +1,6 @@
 <script>
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 	import {
 		matchResults,
 		isVeganized,
@@ -11,13 +12,18 @@
 
 	let lists = $state([]);
 	let isLoading = $state(true);
-	let activeTab = $state('listen');
+	const validTabs = ['listen', 'produkte', 'rezepte'];
+	const tabParam = $page.url.searchParams.get('tab') ?? '';
+	let activeTab = $state(validTabs.includes(tabParam) ? tabParam : 'listen');
 	let pendingDeleteId = $state(null);
 
 	let savedProducts = $state([]);
 	let productsLoaded = $state(false);
 	let pendingDeleteProductId = $state(null);
 	let prodImgErrors = $state({});
+
+	let savedRecipes = $state([]);
+	let recipesLoaded = $state(false);
 
 	const tabs = [
 		{ id: 'listen',   label: 'Listen' },
@@ -27,6 +33,8 @@
 
 	$effect(() => {
 		loadLists();
+		if (activeTab === 'produkte') loadSavedProducts();
+		if (activeTab === 'rezepte') loadSavedRecipes();
 	});
 
 	async function loadLists() {
@@ -41,6 +49,19 @@
 			lists = [];
 		} finally {
 			isLoading = false;
+		}
+	}
+
+	async function loadSavedRecipes() {
+		try {
+			const res = await fetch('/api/saved-recipes?userId=temp-user');
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			savedRecipes = await res.json();
+		} catch (e) {
+			console.error('Rezepte laden fehlgeschlagen:', e);
+			savedRecipes = [];
+		} finally {
+			recipesLoaded = true;
 		}
 	}
 
@@ -159,7 +180,7 @@
 			<button
 				class="tab-btn"
 				class:tab-active={activeTab === tab.id}
-				onclick={() => { activeTab = tab.id; if (tab.id === 'produkte' && !productsLoaded) loadSavedProducts(); }}
+				onclick={() => { activeTab = tab.id; if (tab.id === 'produkte' && !productsLoaded) loadSavedProducts(); if (tab.id === 'rezepte' && !recipesLoaded) loadSavedRecipes(); }}
 			>
 				{tab.label}
 			</button>
@@ -303,9 +324,42 @@
 
 	<!-- Tab: Rezepte -->
 	{:else}
-		<div class="placeholder">
-			<p class="placeholder-text">Bald verfügbar</p>
-		</div>
+		{#if !recipesLoaded}
+			<div class="loading-wrap">
+				<div class="spinner"></div>
+			</div>
+		{:else if savedRecipes.length === 0}
+			<div class="empty-state">
+				<div class="empty-icon">
+					<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"
+						viewBox="0 0 24 24" fill="none" stroke="currentColor"
+						stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+						<path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+					</svg>
+				</div>
+				<p class="empty-title">Noch keine Rezepte gespeichert</p>
+				<p class="empty-sub">Speichere Rezepte auf der Rezept-Detailseite, um sie hier zu finden.</p>
+			</div>
+		{:else}
+			<div class="recipe-cards">
+				{#each savedRecipes as recipe (recipe.id)}
+					<button class="recipe-card" onclick={() => goto('/rezepte/' + recipe.id)}>
+						{#if recipe.imageUrl}
+							<img src={recipe.imageUrl} alt={recipe.title} class="recipe-card-img" />
+						{:else}
+							<div class="recipe-card-img-placeholder"></div>
+						{/if}
+						<div class="recipe-card-info">
+							<span class="recipe-card-title">{recipe.title}</span>
+							{#if recipe.prepTimeMin}
+								<span class="recipe-card-time">{recipe.prepTimeMin} Min</span>
+							{/if}
+						</div>
+					</button>
+				{/each}
+			</div>
+		{/if}
 	{/if}
 </div>
 
@@ -546,19 +600,6 @@
 		font-weight: 600;
 	}
 
-	/* ── Placeholder ──────────────────────────────────────────────────────── */
-	.placeholder {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		padding-top: 80px;
-	}
-
-	.placeholder-text {
-		font-size: 0.9375rem;
-		color: var(--color-text-light);
-	}
-
 	/* ── Product cards (Favoriten) ────────────────────────────────────────── */
 	.prod-cards {
 		display: flex;
@@ -650,5 +691,69 @@
 		flex-shrink: 0;
 		display: flex;
 		align-items: center;
+	}
+
+	/* ── Recipe cards (Gespeicherte Rezepte) ──────────────────────────────── */
+	.recipe-cards {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.recipe-card {
+		display: flex;
+		align-items: center;
+		gap: 14px;
+		width: 100%;
+		padding: 14px 0;
+		border: none;
+		border-bottom: 1px solid var(--color-border);
+		background: transparent;
+		cursor: pointer;
+		text-align: left;
+	}
+
+	.recipe-card:last-child {
+		border-bottom: none;
+	}
+
+	.recipe-card-img {
+		width: 90px;
+		height: 70px;
+		border-radius: 12px;
+		object-fit: cover;
+		flex-shrink: 0;
+	}
+
+	.recipe-card-img-placeholder {
+		width: 90px;
+		height: 70px;
+		border-radius: 12px;
+		background: var(--color-border);
+		flex-shrink: 0;
+	}
+
+	.recipe-card-info {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+		flex: 1;
+		min-width: 0;
+	}
+
+	.recipe-card-title {
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+		font-size: 0.9375rem;
+		font-weight: 600;
+		color: var(--color-text);
+		line-height: 1.35;
+	}
+
+	.recipe-card-time {
+		font-size: 0.75rem;
+		color: var(--color-text-light);
 	}
 </style>
