@@ -39,6 +39,45 @@
 	let diyCheckedMap = $state({});
 	let diyReplacedVisible = $state(false);
 
+	// ── Eier accordion state ──────────────────────────────────────────────
+	let expandedRecipeId = $state(null);
+	let eierChecked = $state({});
+
+	const EIER_USE_CASE_ORDER = [
+		'Süsses Backen & Teige',
+		'Herzhafte Gerichte & Frühstück',
+		'Aufschlagen & Mousse',
+		'Binden',
+		'Glasieren & Bräunen',
+	];
+
+	let isEierMode = $derived(diyDisplayName === 'Eier');
+
+	let eierGrouped = $derived.by(() => {
+		if (!isEierMode) return {};
+		const groups = {};
+		for (const recipe of diyRecipes) {
+			const uc = recipe.useCase || 'Sonstiges';
+			if (!groups[uc]) groups[uc] = [];
+			groups[uc].push(recipe);
+		}
+		const ordered = {};
+		for (const uc of EIER_USE_CASE_ORDER) {
+			if (groups[uc]) ordered[uc] = groups[uc];
+		}
+		for (const uc of Object.keys(groups)) {
+			if (!ordered[uc]) ordered[uc] = groups[uc];
+		}
+		return ordered;
+	});
+
+	let eierHasSelection = $derived.by(() => {
+		for (const [recipeId, ingMap] of Object.entries(eierChecked)) {
+			if (Object.values(ingMap).some(v => v)) return true;
+		}
+		return false;
+	});
+
 
 	const tabs = [
 		{ id: 'produkt', label: 'Produkt' },
@@ -292,6 +331,54 @@
 		});
 		diyCheckedMap = map;
 		diyModalOpen = true;
+	}
+
+	function toggleEierCard(recipe) {
+		if (expandedRecipeId === recipe.id) {
+			expandedRecipeId = null;
+		} else {
+			expandedRecipeId = recipe.id;
+			if (!eierChecked[recipe.id]) {
+				const map = {};
+				(recipe.ingredients || []).forEach((ing, i) => {
+					if (ing.name !== 'Wasser') map[i] = true;
+				});
+				eierChecked = { ...eierChecked, [recipe.id]: map };
+			}
+		}
+	}
+
+	function toggleEierIngredient(recipeId, index) {
+		const current = eierChecked[recipeId] ?? {};
+		eierChecked = { ...eierChecked, [recipeId]: { ...current, [index]: !current[index] } };
+	}
+
+	async function submitEier() {
+		if (!$savedListId) return;
+		const ingredients = [];
+		for (const [recipeId, ingMap] of Object.entries(eierChecked)) {
+			const recipe = diyRecipes.find(r => r.id === recipeId);
+			if (!recipe) continue;
+			(recipe.ingredients || []).forEach((ing, i) => {
+				if (ing.name !== 'Wasser' && ingMap[i]) {
+					ingredients.push({ name: ing.name, amount: ing.amount, unit: ing.unit, type: 'C' });
+				}
+			});
+		}
+		if (ingredients.length === 0) return;
+		try {
+			const res = await fetch(`/api/shoppinglists/${$savedListId}/items/batch`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', 'X-User-Id': 'temp-user' },
+				body: JSON.stringify({ recipeTitle: 'Plantified Eier', ingredients }),
+			});
+			if (res.ok) {
+				diyReplacedVisible = true;
+				setTimeout(() => goto('/liste'), 1500);
+			}
+		} catch (e) {
+			console.error('Eier-Zutaten hinzufügen fehlgeschlagen:', e);
+		}
 	}
 
 	async function submitDiy() {
@@ -580,42 +667,108 @@
 			{/if}
 
 		{:else if activeTab === 'diy'}
-			{#each diyRecipes as recipe}
-				<div class="diy-recipe">
-					<div class="section">
-						<h2 class="diy-title">{recipe.title}</h2>
-						{#if recipe.description}
-							<p class="diy-description">{recipe.description}</p>
-						{/if}
-					</div>
-					<div class="section">
-						<h3 class="diy-subtitle">Zutaten</h3>
-						<div class="diy-ingredient-list">
-							{#each (recipe.ingredients || []).filter(i => i.name !== 'Wasser') as ing}
-								<div class="diy-ingredient-row">
-									<span class="diy-ing-qty">{ing.amount != null ? ing.amount : ''}{ing.unit ? '\u00a0' + ing.unit : ''}</span>
-									<span class="diy-ing-name">{ing.name}</span>
-								</div>
-							{/each}
+			{#if isEierMode}
+				<!-- ── Eier Spezial-UI ────────────────────────────────────── -->
+				<div class="section">
+					<h2 class="diy-title">Wie man Eier ersetzt</h2>
+					<p class="diy-description">Eier erfüllen beim Kochen verschiedene Zwecke. Wähle unten deinen Anwendungsfall, um die perfekte pflanzliche Alternative zu finden.</p>
+				</div>
+				<div class="eier-groups">
+					{#each Object.entries(eierGrouped) as [useCase, recipes]}
+						<p class="eier-use-case-label">{useCase}</p>
+						{#each recipes as recipe (recipe.id)}
+							{@const expanded = expandedRecipeId === recipe.id}
+							{@const checkedMap = eierChecked[recipe.id] ?? {}}
+							<div class="eier-card" class:eier-card-expanded={expanded}>
+								<button class="eier-card-header" onclick={() => toggleEierCard(recipe)}>
+									<span class="eier-card-title">{recipe.title}</span>
+									<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+										{#if expanded}
+											<polyline points="18 15 12 9 6 15"/>
+										{:else}
+											<polyline points="6 9 12 15 18 9"/>
+										{/if}
+									</svg>
+								</button>
+								{#if expanded}
+									{#if recipe.description}
+										<p class="eier-card-desc">{recipe.description}</p>
+									{/if}
+									<div class="eier-ing-list">
+										{#each (recipe.ingredients || []) as ing, i}
+											{#if ing.name !== 'Wasser'}
+												<button
+													class="eier-ing-row"
+													class:eier-ing-unchecked={!checkedMap[i]}
+													onclick={() => toggleEierIngredient(recipe.id, i)}
+												>
+													<div class="diy-checkbox" class:diy-checkbox-checked={checkedMap[i]}>
+														{#if checkedMap[i]}
+															<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+														{/if}
+													</div>
+													<span class="eier-ing-name">{ing.name}</span>
+													<span class="eier-ing-qty">{ing.amount != null ? ing.amount : ''}{ing.unit ? '\u00a0' + ing.unit : ''}</span>
+												</button>
+											{/if}
+										{/each}
+									</div>
+								{/if}
+							</div>
+						{/each}
+					{/each}
+				</div>
+				<div class="eier-sticky-action">
+					{#if $savedListId}
+						<button class="btn-eier-add" disabled={!eierHasSelection} onclick={submitEier}>
+							Ausgewählte zur Liste hinzufügen
+						</button>
+					{:else}
+						<button class="btn-eier-add" disabled>
+							Ausgewählte zur Liste hinzufügen
+						</button>
+						<p class="diy-hint">Speichere zuerst deine Liste, um Zutaten hinzuzufügen.</p>
+					{/if}
+				</div>
+			{:else}
+				<!-- ── Normaler DIY-Tab ────────────────────────────────────── -->
+				{#each diyRecipes as recipe}
+					<div class="diy-recipe">
+						<div class="section">
+							<h2 class="diy-title">{recipe.title}</h2>
+							{#if recipe.description}
+								<p class="diy-description">{recipe.description}</p>
+							{/if}
+						</div>
+						<div class="section">
+							<h3 class="diy-subtitle">Zutaten</h3>
+							<div class="diy-ingredient-list">
+								{#each (recipe.ingredients || []).filter(i => i.name !== 'Wasser') as ing}
+									<div class="diy-ingredient-row">
+										<span class="diy-ing-qty">{ing.amount != null ? ing.amount : ''}{ing.unit ? '\u00a0' + ing.unit : ''}</span>
+										<span class="diy-ing-name">{ing.name}</span>
+									</div>
+								{/each}
+							</div>
+						</div>
+						<div class="diy-actions">
+							{#if $savedListId}
+								<button class="btn-diy-add" onclick={openDiyModal}>
+									Zutaten zur Liste hinzufügen
+								</button>
+							{:else}
+								<button class="btn-diy-add" disabled>
+									Zutaten zur Liste hinzufügen
+								</button>
+								<p class="diy-hint">Speichere zuerst deine Liste, um DIY-Zutaten hinzuzufügen.</p>
+							{/if}
+							<button class="btn-diy-recipe" disabled title="Bald verfügbar">
+								Zum Rezept
+							</button>
 						</div>
 					</div>
-					<div class="diy-actions">
-						{#if $savedListId}
-							<button class="btn-diy-add" onclick={openDiyModal}>
-								Zutaten zur Liste hinzufügen
-							</button>
-						{:else}
-							<button class="btn-diy-add" disabled>
-								Zutaten zur Liste hinzufügen
-							</button>
-							<p class="diy-hint">Speichere zuerst deine Liste, um DIY-Zutaten hinzuzufügen.</p>
-						{/if}
-						<button class="btn-diy-recipe" disabled title="Bald verfügbar">
-							Zum Rezept
-						</button>
-					</div>
-				</div>
-			{/each}
+				{/each}
+			{/if}
 		{/if}
 	</div>
 
@@ -1332,6 +1485,126 @@
 		color: var(--color-text-light);
 		text-align: center;
 		line-height: 1.4;
+	}
+
+	/* ── Eier accordion ───────────────────────────────────────────────────── */
+	.eier-groups {
+		padding: 0 16px;
+	}
+
+	.eier-use-case-label {
+		font-size: 0.75rem;
+		font-weight: 600;
+		color: var(--color-primary);
+		letter-spacing: 0.05em;
+		text-transform: uppercase;
+		margin-top: 20px;
+		margin-bottom: 10px;
+	}
+
+	.eier-card {
+		border: 1.5px solid var(--color-border);
+		border-radius: 14px;
+		margin-bottom: 8px;
+		overflow: hidden;
+		transition: border-color 0.15s ease;
+	}
+
+	.eier-card-expanded {
+		border-color: var(--color-primary);
+	}
+
+	.eier-card-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		width: 100%;
+		padding: 14px 16px;
+		background: transparent;
+		color: var(--color-text);
+		text-align: left;
+		cursor: pointer;
+	}
+
+	.eier-card-title {
+		font-size: 0.9375rem;
+		font-weight: 600;
+		color: var(--color-text);
+	}
+
+	.eier-card-desc {
+		font-size: 0.875rem;
+		color: var(--color-text-light);
+		line-height: 1.5;
+		padding: 0 16px 12px;
+	}
+
+	.eier-ing-list {
+		display: flex;
+		flex-direction: column;
+		padding: 0 12px 12px;
+		gap: 4px;
+	}
+
+	.eier-ing-row {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		width: 100%;
+		padding: 8px 4px;
+		background: transparent;
+		text-align: left;
+		border-radius: 8px;
+		transition: background 0.1s ease;
+	}
+
+	.eier-ing-row:active {
+		background: var(--color-primary-light);
+	}
+
+	.eier-ing-unchecked {
+		opacity: 0.45;
+	}
+
+	.eier-ing-name {
+		flex: 1;
+		font-size: 0.9375rem;
+		color: var(--color-text);
+	}
+
+	.eier-ing-qty {
+		font-size: 0.875rem;
+		color: var(--color-text-light);
+		flex-shrink: 0;
+	}
+
+	.eier-sticky-action {
+		position: sticky;
+		bottom: 0;
+		padding: 12px 16px 24px;
+		background: var(--color-bg);
+		border-top: 1px solid var(--color-border);
+		margin-top: 16px;
+	}
+
+	.btn-eier-add {
+		width: 100%;
+		padding: 16px;
+		border-radius: 14px;
+		background: var(--color-primary);
+		color: #fff;
+		font-size: 1rem;
+		font-weight: 600;
+		text-align: center;
+		transition: background 0.15s ease;
+	}
+
+	.btn-eier-add:disabled {
+		opacity: 0.45;
+	}
+
+	.btn-eier-add:not(:disabled):active {
+		background: var(--color-primary-hover);
 	}
 
 	/* ── DIY modal (bottom sheet) ─────────────────────────────────────────── */

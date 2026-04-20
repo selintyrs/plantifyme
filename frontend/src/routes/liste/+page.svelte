@@ -769,7 +769,9 @@ if (matches.length > 0) {
 											aria-label="Details"
 											onclick={async () => {
 												try {
-													if (result.suggestedProduct) {
+													if (result.displayName === 'Eier') {
+														goto('/products/eier');
+													} else if (result.suggestedProduct) {
 														goto(`/products/${result.suggestedProduct.id}`);
 													} else if (result.genericFood) {
 														goto(`/products/${result.genericFood.id}?type=C`);
@@ -1206,9 +1208,9 @@ if (matches.length > 0) {
 					<div class="cat-breadcrumb">
 						<button class="breadcrumb-back" onclick={() => selectedCategory = null}>Kategorien</button>
 						<span class="breadcrumb-sep">›</span>
-						<span class="breadcrumb-current">{selectedCategory}</span>
+						<span class="breadcrumb-current">{selectedCategory === 'Milchprodukte & Käse' ? 'Milchprodukte & Eier' : selectedCategory}</span>
 					</div>
-					{#each $dictionaryStore.filter(e => e.uiCategory === selectedCategory) as entry, i (i)}
+					{#each $dictionaryStore.filter(e => e.uiCategory === selectedCategory).sort((a, b) => a.displayName.localeCompare(b.displayName, 'de')) as entry, i (i)}
 						{@render entryItem(entry)}
 					{/each}
 				{:else}
@@ -1221,9 +1223,9 @@ if (matches.length > 0) {
 							<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11h18a1 1 0 0 1 1 1v3a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4v-3a1 1 0 0 1 1-1z"/><path d="M3 11a7 7 0 0 1 14 0"/></svg>
 							<span class="cat-card-name">Brot & Backwaren</span>
 						</button>
-						<button class="cat-card" onclick={() => selectedCategory = 'Milchprodukte & Ei-Ersatz'}>
+						<button class="cat-card" onclick={() => selectedCategory = 'Milchprodukte & Käse'}>
 							<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
-							<span class="cat-card-name">Milchprodukte & Ei-Ersatz</span>
+							<span class="cat-card-name">Milchprodukte & Eier</span>
 						</button>
 						<button class="cat-card" onclick={() => selectedCategory = 'Fleisch- & Fischalternativen'}>
 							<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2s2-.9 2-2V2"/><line x1="4" y1="8" x2="4" y2="22"/><line x1="20" y1="5" x2="20" y2="22"/><path d="M20 5a2 2 0 0 0-2 2v3a2 2 0 0 0 4 0V7a2 2 0 0 0-2-2z"/></svg>

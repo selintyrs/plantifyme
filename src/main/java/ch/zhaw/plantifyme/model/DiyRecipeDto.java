@@ -16,6 +16,7 @@ public class DiyRecipeDto {
     private Integer prepTimeMin;
     private String difficulty;
     private String imageUrl;
+    private String useCase;
     private List<MatchingKey> matchingKeys;
     private List<DiyIngredient> ingredients;
     private List<DiyStep> instructions;

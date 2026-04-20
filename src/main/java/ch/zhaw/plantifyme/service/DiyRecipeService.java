@@ -47,6 +47,7 @@ public class DiyRecipeService {
         dto.setPrepTimeMin(recipe.getPrepTimeMin());
         dto.setDifficulty(recipe.getDifficulty());
         dto.setImageUrl(recipe.getImageUrl());
+        dto.setUseCase(recipe.getUseCase());
         dto.setMatchingKeys(recipe.getMatchingKeys());
         dto.setIngredients(recipe.getIngredients());
         dto.setInstructions(recipe.getInstructions());
