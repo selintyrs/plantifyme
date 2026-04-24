@@ -7,7 +7,7 @@
 	let category = $derived(categories.find(c => c.id === categoryId));
 	let articles = $derived(getArticlesByCategory(categoryId));
 
-	let openArticleId = $state(null);
+	let openArticleId = $state($page.url.searchParams.get('openArticle'));
 
 	function toggleArticle(articleId) {
 		openArticleId = openArticleId === articleId ? null : articleId;

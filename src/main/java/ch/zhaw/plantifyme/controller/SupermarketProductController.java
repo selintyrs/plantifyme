@@ -30,6 +30,14 @@ public class SupermarketProductController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/products")
+    public ResponseEntity<List<SupermarketProduct>> searchProducts(
+            @RequestParam String displayName,
+            @RequestParam(defaultValue = "1") int limit) {
+        List<SupermarketProduct> products = supermarketProductRepository.findByMatchingDisplayNameWithImage(displayName);
+        return ResponseEntity.ok(products.stream().limit(limit).toList());
+    }
+
     @GetMapping("/products/{productId}/alternatives")
     public ResponseEntity<List<SupermarketProduct>> getAlternatives(
             @PathVariable String productId,
