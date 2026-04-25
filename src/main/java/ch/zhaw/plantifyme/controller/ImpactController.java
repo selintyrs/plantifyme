@@ -2,12 +2,12 @@ package ch.zhaw.plantifyme.controller;
 
 import ch.zhaw.plantifyme.model.dto.ImpactTotalDto;
 import ch.zhaw.plantifyme.service.ImpactService;
+import ch.zhaw.plantifyme.util.AuthUtil;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -19,7 +19,8 @@ public class ImpactController {
     private final ImpactService impactService;
 
     @GetMapping("/total")
-    public ResponseEntity<ImpactTotalDto> getTotalImpact(@RequestParam String userId) {
+    public ResponseEntity<ImpactTotalDto> getTotalImpact() {
+        String userId = AuthUtil.requireCurrentUserId();
         return ResponseEntity.ok(impactService.computeTotal(userId));
     }
 }

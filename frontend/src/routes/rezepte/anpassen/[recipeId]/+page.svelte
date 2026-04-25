@@ -3,6 +3,7 @@
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { recipeCreationStore, resetRecipeCreation } from '$lib/stores/recipeCreation.js';
+	import { authFetch } from '$lib/api.js';
 
 	let recipeId = $page.params.recipeId;
 	let baseRecipe = $state(null);
@@ -41,12 +42,12 @@
 			isLoading = false;
 		} else {
 			try {
-				let res = await fetch(`/api/base-recipes/${id}`);
+				let res = await authFetch(`/api/base-recipes/${id}`);
 				if (res.ok) {
 					baseRecipe = await res.json();
 					recipeName = baseRecipe.title;
 				} else {
-					res = await fetch(`/api/saved-recipes/${id}`);
+					res = await authFetch(`/api/saved-recipes/${id}`);
 					if (res.ok) {
 						baseRecipe = await res.json();
 						recipeName = baseRecipe.title;
@@ -86,9 +87,8 @@
 				baseRecipeId: recipeId !== 'neu' ? recipeId : null
 			};
 
-			const res = await fetch('/api/recipes/generate', {
+			const res = await authFetch('/api/recipes/generate', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(body)
 			});
 

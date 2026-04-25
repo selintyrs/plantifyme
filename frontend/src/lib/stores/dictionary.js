@@ -1,12 +1,13 @@
 import { writable, get } from 'svelte/store';
 import Fuse from 'fuse.js';
+import { authFetch } from '$lib/api.js';
 
 export const dictionaryStore = writable([]);
 
 export async function loadDictionary() {
 	if (get(dictionaryStore).length > 0) return;
 
-	const response = await fetch('/api/frontend-dictionary');
+	const response = await authFetch('/api/frontend-dictionary');
 	if (!response.ok) {
 		console.error('Failed to load frontend dictionary:', response.status);
 		return;

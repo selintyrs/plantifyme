@@ -2,10 +2,10 @@
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { infoArticles, categories } from '$lib/data/infoArticles.js';
+	import { authFetch } from '$lib/api.js';
+	import { user } from '$lib/stores/auth.js';
 
-	const USER_ID = 'temp-user';
-	const USER_NAME = 'Max Mustermann';
-	const FIRST_NAME = USER_NAME.split(' ')[0];
+	let FIRST_NAME = $derived(($user?.given_name || $user?.name || 'dort').split(' ')[0]);
 
 	let shoppingLists = $state([]);
 	let dictionary = $state([]);
@@ -30,7 +30,7 @@
 		if (!items.length) return;
 		const results = await Promise.all(items.map(async (entry) => {
 			try {
-				const res = await fetch(`/api/products?displayName=${encodeURIComponent(entry.displayName)}&limit=1`);
+				const res = await authFetch(`/api/products?displayName=${encodeURIComponent(entry.displayName)}&limit=1`);
 				if (!res.ok) return [entry.displayName, null];
 				const products = await res.json();
 				const p = products[0];
@@ -49,7 +49,7 @@
 
 	async function loadShoppingLists() {
 		try {
-			const res = await fetch(`/api/shoppinglists?userId=${USER_ID}`);
+			const res = await authFetch('/api/shoppinglists');
 			if (res.ok) shoppingLists = await res.json();
 		} catch (e) {
 			console.error('shoppinglists load failed:', e);
@@ -58,7 +58,7 @@
 
 	async function loadDictionary() {
 		try {
-			const res = await fetch('/api/frontend-dictionary');
+			const res = await authFetch('/api/frontend-dictionary');
 			if (res.ok) dictionary = await res.json();
 		} catch (e) {
 			console.error('dictionary load failed:', e);
@@ -67,7 +67,7 @@
 
 	async function loadBaseRecipes() {
 		try {
-			const res = await fetch('/api/base-recipes');
+			const res = await authFetch('/api/base-recipes');
 			if (res.ok) baseRecipes = await res.json();
 		} catch (e) {
 			console.error('base-recipes load failed:', e);
@@ -76,7 +76,7 @@
 
 	async function loadImpactTotal() {
 		try {
-			const res = await fetch(`/api/impact/total?userId=${USER_ID}`);
+			const res = await authFetch('/api/impact/total');
 			if (res.ok) impactTotal = await res.json();
 		} catch (e) {
 			console.error('impact load failed:', e);

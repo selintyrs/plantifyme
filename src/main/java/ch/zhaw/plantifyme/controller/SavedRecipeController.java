@@ -2,6 +2,7 @@ package ch.zhaw.plantifyme.controller;
 
 import ch.zhaw.plantifyme.model.SavedRecipe;
 import ch.zhaw.plantifyme.service.SavedRecipeService;
+import ch.zhaw.plantifyme.util.AuthUtil;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -10,7 +11,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -24,7 +24,8 @@ public class SavedRecipeController {
     private final SavedRecipeService savedRecipeService;
 
     @GetMapping
-    public ResponseEntity<List<SavedRecipe>> getAll(@RequestParam String userId) {
+    public ResponseEntity<List<SavedRecipe>> getAll() {
+        String userId = AuthUtil.requireCurrentUserId();
         return ResponseEntity.ok(savedRecipeService.findByUser(userId));
     }
 

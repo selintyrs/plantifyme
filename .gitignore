@@ -37,3 +37,9 @@ src/main/resources/static/
 
 
 frontend/static/images/products/
+
+### Env files ###
+.env
+.env.local
+.env.*.local
+!.env.example

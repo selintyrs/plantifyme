@@ -5,6 +5,7 @@ import ch.zhaw.plantifyme.model.dto.SaveProductRequest;
 import ch.zhaw.plantifyme.service.ConflictException;
 import ch.zhaw.plantifyme.service.OwnershipException;
 import ch.zhaw.plantifyme.service.SavedProductService;
+import ch.zhaw.plantifyme.util.AuthUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,9 +14,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -27,11 +26,9 @@ public class SavedProductController {
     @Autowired
     private SavedProductService savedProductService;
 
-    // TODO: Replace X-User-Id header with Auth0 JWT token extraction in Iteration 3
     @PostMapping("/saved-products")
-    public ResponseEntity<SavedProduct> saveProduct(
-            @RequestHeader("X-User-Id") String userId,
-            @RequestBody SaveProductRequest request) {
+    public ResponseEntity<SavedProduct> saveProduct(@RequestBody SaveProductRequest request) {
+        String userId = AuthUtil.requireCurrentUserId();
         try {
             return savedProductService.saveProduct(userId, request)
                     .map(saved -> ResponseEntity.status(HttpStatus.CREATED).body(saved))
@@ -41,18 +38,15 @@ public class SavedProductController {
         }
     }
 
-    // TODO: Replace userId query param with Auth0 JWT in Iteration 3
     @GetMapping("/saved-products")
-    public ResponseEntity<List<SavedProduct>> getSavedProducts(
-            @RequestParam String userId) {
+    public ResponseEntity<List<SavedProduct>> getSavedProducts() {
+        String userId = AuthUtil.requireCurrentUserId();
         return ResponseEntity.ok(savedProductService.getByUser(userId));
     }
 
-    // TODO: Replace X-User-Id header with Auth0 JWT token extraction in Iteration 3
     @DeleteMapping("/saved-products/{id}")
-    public ResponseEntity<Void> unsaveProduct(
-            @PathVariable String id,
-            @RequestHeader("X-User-Id") String userId) {
+    public ResponseEntity<Void> unsaveProduct(@PathVariable String id) {
+        String userId = AuthUtil.requireCurrentUserId();
         try {
             boolean found = savedProductService.unsaveProduct(id, userId);
             return found ? ResponseEntity.ok().build() : ResponseEntity.notFound().build();

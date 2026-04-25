@@ -2,6 +2,7 @@
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
+	import { authFetch } from '$lib/api.js';
 
 	const categoryMap = {
 		'schweizer-kueche': 'Schweizer Küche',
@@ -21,10 +22,10 @@
 		try {
 			if (categoryId === 'pflanzliche-basics') {
 				categoryName = 'Pflanzliche Basics';
-				const res = await fetch('/api/diy-recipes');
+				const res = await authFetch('/api/diy-recipes');
 				if (res.ok) recipes = await res.json();
 			} else {
-				const res = await fetch('/api/base-recipes?category=' + encodeURIComponent(categoryName));
+				const res = await authFetch('/api/base-recipes?category=' + encodeURIComponent(categoryName));
 				if (res.ok) recipes = await res.json();
 			}
 		} catch (e) {

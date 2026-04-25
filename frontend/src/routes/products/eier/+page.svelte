@@ -4,6 +4,7 @@
 	import { savedListId, matchResults, shoppingListStore, isVeganized, resetAll, resetForLoad, itemIdMap } from '$lib/stores/shoppingList.js';
 	import { supermarketStore } from '$lib/stores/supermarket.js';
 	import { dictionaryStore } from '$lib/stores/dictionary.js';
+	import { authFetch } from '$lib/api.js';
 
 	let recipes = $state([]);
 	let isLoading = $state(true);
@@ -69,7 +70,7 @@
 
 	onMount(async () => {
 		try {
-			const res = await fetch('/api/diy-recipes?displayName=Eier');
+			const res = await authFetch('/api/diy-recipes?displayName=Eier');
 			if (!res.ok) throw new Error(`HTTP ${res.status}`);
 			recipes = await res.json();
 		} catch (e) {
@@ -115,9 +116,9 @@
 
 	async function addToExistingList(listId) {
 		try {
-			const res = await fetch(`/api/shoppinglists/${listId}/items/batch`, {
+			const res = await authFetch(`/api/shoppinglists/${listId}/items/batch`, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json', 'X-User-Id': 'temp-user' },
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ recipeTitle: 'Plantified Eier', ingredients: selectedIngredients }),
 			});
 			if (res.ok) {
@@ -171,9 +172,9 @@
 		addedVisible = true;
 		const apiSupermarket = supermarket === 'Migros' ? 'Migros' : supermarket.toLowerCase();
 		try {
-			const res = await fetch('/api/shoppinglists/from-recipe', {
+			const res = await authFetch('/api/shoppinglists/from-recipe', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json', 'X-User-Id': 'temp-user' },
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ recipeTitle: 'Plantified Eier', supermarket: apiSupermarket, ingredients: selectedIngredients }),
 			});
 			if (res.ok) {

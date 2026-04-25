@@ -1,6 +1,7 @@
 <script>
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
+	import { authFetch } from '$lib/api.js';
 
 	let id = $page.params.id;
 	let recipe = $state(null);
@@ -10,7 +11,7 @@
 
 	onMount(async () => {
 		try {
-			const res = await fetch(`/api/diy-recipes/${id}`);
+			const res = await authFetch(`/api/diy-recipes/${id}`);
 			if (res.ok) {
 				recipe = await res.json();
 			} else {

@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { recipeCreationStore } from '$lib/stores/recipeCreation.js';
+	import { authFetch } from '$lib/api.js';
 
 	let baseRecipes = $state([]);
 	let savedRecipes = $state([]);
@@ -13,9 +14,9 @@
 	onMount(async () => {
 		try {
 			const [baseRes, savedRes, diyRes] = await Promise.all([
-				fetch('/api/base-recipes'),
-				fetch('/api/saved-recipes?userId=temp-user'),
-				fetch('/api/diy-recipes')
+				authFetch('/api/base-recipes'),
+				authFetch('/api/saved-recipes'),
+				authFetch('/api/diy-recipes')
 			]);
 			if (baseRes.ok) baseRecipes = await baseRes.json();
 			if (savedRes.ok) savedRecipes = await savedRes.json();

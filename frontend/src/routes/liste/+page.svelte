@@ -18,6 +18,7 @@
 	import { supermarketStore } from "$lib/stores/supermarket.js";
 	import { recentProducts, addRecentProduct } from "$lib/stores/recentProducts.js";
 	import { goto } from "$app/navigation";
+	import { authFetch } from "$lib/api.js";
 
 	// ── Core state ────────────────────────────────────────────────────────────
 	let isLoading = $state(false);
@@ -170,7 +171,7 @@
 		isLoading = true;
 		supermarketModalOpen = false;
 		try {
-			const res = await fetch("/api/plantify-match", {
+			const res = await authFetch("/api/plantify-match", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
@@ -201,7 +202,7 @@
 
 	async function matchSingleItem(item) {
 		try {
-			const res = await fetch("/api/plantify-match", {
+			const res = await authFetch("/api/plantify-match", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
@@ -268,11 +269,10 @@ if (matches.length > 0) {
 
 		isLoading = true;
 		try {
-			const res = await fetch(`/api/shoppinglists/${$savedListId}/supermarket`, {
+			const res = await authFetch(`/api/shoppinglists/${$savedListId}/supermarket`, {
 				method: 'PATCH',
 				headers: {
 					'Content-Type': 'application/json',
-					'X-User-Id': 'temp-user',
 				},
 				body: JSON.stringify({ supermarket: newSupermarket }),
 			});
@@ -293,11 +293,10 @@ if (matches.length > 0) {
 
 	async function syncItemToBackend(listId, entry, subcategory, quantity) {
 		try {
-			await fetch(`/api/shoppinglists/${listId}/items`, {
+			await authFetch(`/api/shoppinglists/${listId}/items`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
-					'X-User-Id': 'temp-user',
 				},
 				body: JSON.stringify({
 					displayName: entry.displayName,
@@ -447,13 +446,13 @@ if (matches.length > 0) {
 
 	async function clearList() {
 		try {
-			const res = await fetch('/api/shoppinglists?userId=temp-user');
+			const res = await authFetch('/api/shoppinglists');
 			if (res.ok) {
 				const lists = await res.json();
 				for (const list of lists) {
-					await fetch(`/api/shoppinglists/${list.id}`, {
+					await authFetch(`/api/shoppinglists/${list.id}`, {
 						method: 'DELETE',
-						headers: { 'X-User-Id': 'temp-user' }
+						headers: { }
 					});
 				}
 			}
@@ -495,11 +494,9 @@ if (matches.length > 0) {
 
 	async function saveList() {
 		try {
-			const res = await fetch('/api/shoppinglists', {
+			const res = await authFetch('/api/shoppinglists', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					userId: 'temp-user',
 					name: saveListName,
 					supermarket: $supermarketStore,
 					items: buildSaveItems(),
@@ -776,7 +773,7 @@ if (matches.length > 0) {
 													} else if (result.genericFood) {
 														goto(`/products/${result.genericFood.id}?type=C`);
 													} else {
-														const res = await fetch('/api/generic-foods/search?name=' + encodeURIComponent(result.displayName));
+														const res = await authFetch('/api/generic-foods/search?name=' + encodeURIComponent(result.displayName));
 														if (res.ok) {
 															const food = await res.json();
 															goto(`/products/${food.id}?type=C`);

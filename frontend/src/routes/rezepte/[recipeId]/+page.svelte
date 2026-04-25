@@ -5,6 +5,7 @@
 	import { savedListId, matchResults, itemIdMap, isVeganized, shoppingListStore, resetForLoad, resetAll } from '$lib/stores/shoppingList.js';
 	import { dictionaryStore } from '$lib/stores/dictionary.js';
 	import { supermarketStore } from '$lib/stores/supermarket.js';
+	import { authFetch } from '$lib/api.js';
 
 	let recipeId = $page.params.recipeId;
 	let recipe = $state(null);
@@ -25,7 +26,7 @@
 
 	onMount(async () => {
 		try {
-			const res = await fetch(`/api/saved-recipes/${recipeId}`);
+			const res = await authFetch(`/api/saved-recipes/${recipeId}`);
 			if (res.ok) {
 				recipe = await res.json();
 				currentServings = recipe.servings || 2;
@@ -68,7 +69,7 @@
 			showToast('Rezept bereits gespeichert');
 		} else {
 			try {
-				const res = await fetch(`/api/saved-recipes/${recipeId}/save`, { method: 'POST' });
+				const res = await authFetch(`/api/saved-recipes/${recipeId}/save`, { method: 'POST' });
 				if (res.ok) {
 					isSaved = true;
 					showToast('Rezept gespeichert');
@@ -162,14 +163,14 @@
 
 	async function addToExistingList(listId) {
 		try {
-			await fetch(`/api/saved-recipes/${recipeId}/save`, { method: 'POST' });
+			await authFetch(`/api/saved-recipes/${recipeId}/save`, { method: 'POST' });
 			isSaved = true;
 		} catch (e) { /* not critical */ }
 
 		try {
-			const res = await fetch(`/api/shoppinglists/${listId}/items/batch`, {
+			const res = await authFetch(`/api/shoppinglists/${listId}/items/batch`, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json', 'X-User-Id': 'temp-user' },
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ recipeTitle: recipe.title, ingredients: selectedIngredients })
 			});
 			if (res.ok) {
@@ -233,14 +234,14 @@
 		const apiSupermarket = supermarket === 'Migros' ? 'Migros' : supermarket.toLowerCase();
 
 		try {
-			await fetch(`/api/saved-recipes/${recipeId}/save`, { method: 'POST' });
+			await authFetch(`/api/saved-recipes/${recipeId}/save`, { method: 'POST' });
 			isSaved = true;
 		} catch (e) { /* not critical */ }
 
 		try {
-			const res = await fetch('/api/shoppinglists/from-recipe', {
+			const res = await authFetch('/api/shoppinglists/from-recipe', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json', 'X-User-Id': 'temp-user' },
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ recipeTitle: recipe.title, supermarket: apiSupermarket, ingredients: selectedIngredients })
 			});
 			if (res.ok) {

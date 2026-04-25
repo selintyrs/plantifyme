@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { onMount, tick } from 'svelte';
 	import { categories } from '$lib/data/infoArticles.js';
+	import { authFetch } from '$lib/api.js';
 
 	const STORAGE_KEY = 'plantify_coach_chat';
 	const MAX_STORED = 50;
@@ -60,9 +61,8 @@
 				content: m.content,
 			}));
 
-			const res = await fetch('/api/coach/chat', {
+			const res = await authFetch('/api/coach/chat', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ message: trimmed, history: historyForApi }),
 			});
 

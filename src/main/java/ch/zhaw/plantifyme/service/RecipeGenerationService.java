@@ -9,6 +9,7 @@ import ch.zhaw.plantifyme.model.dto.RecipeGenerationRequest;
 import ch.zhaw.plantifyme.model.dto.RecipePreferences;
 import ch.zhaw.plantifyme.repository.BaseRecipeRepository;
 import ch.zhaw.plantifyme.repository.SavedRecipeRepository;
+import ch.zhaw.plantifyme.util.AuthUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.ai.chat.client.ChatClient;
@@ -203,7 +204,7 @@ public class RecipeGenerationService {
 
     private SavedRecipe mapToSavedRecipe(JsonNode json, RecipeGenerationRequest request) {
         SavedRecipe recipe = new SavedRecipe();
-        recipe.setUserId("temp-user");
+        recipe.setUserId(AuthUtil.requireCurrentUserId());
         recipe.setAiGenerated(true);
         recipe.setSaved(false);
         recipe.setTitle(json.path("title").asText());

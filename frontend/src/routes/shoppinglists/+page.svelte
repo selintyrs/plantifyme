@@ -9,6 +9,7 @@
 		resetForLoad,
 	} from '$lib/stores/shoppingList.js';
 	import { supermarketStore } from '$lib/stores/supermarket.js';
+	import { authFetch } from '$lib/api.js';
 
 	let lists = $state([]);
 	let isLoading = $state(true);
@@ -40,7 +41,7 @@
 	async function loadLists() {
 		isLoading = true;
 		try {
-			const res = await fetch('/api/shoppinglists?userId=temp-user');
+			const res = await authFetch('/api/shoppinglists');
 			if (!res.ok) throw new Error(`HTTP ${res.status}`);
 			const data = await res.json();
 			lists = data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -54,7 +55,7 @@
 
 	async function loadSavedRecipes() {
 		try {
-			const res = await fetch('/api/saved-recipes?userId=temp-user');
+			const res = await authFetch('/api/saved-recipes');
 			if (!res.ok) throw new Error(`HTTP ${res.status}`);
 			savedRecipes = await res.json();
 		} catch (e) {
@@ -67,7 +68,7 @@
 
 	async function loadSavedProducts() {
 		try {
-			const res = await fetch('/api/saved-products?userId=temp-user');
+			const res = await authFetch('/api/saved-products');
 			if (!res.ok) throw new Error(`HTTP ${res.status}`);
 			savedProducts = await res.json();
 		} catch (e) {
@@ -80,9 +81,8 @@
 
 	async function confirmDeleteProduct(id) {
 		try {
-			const res = await fetch(`/api/saved-products/${id}`, {
+			const res = await authFetch(`/api/saved-products/${id}`, {
 				method: 'DELETE',
-				headers: { 'X-User-Id': 'temp-user' },
 			});
 			if (!res.ok) throw new Error(`HTTP ${res.status}`);
 			savedProducts = savedProducts.filter((p) => p.id !== id);
@@ -95,9 +95,8 @@
 
 	async function confirmDelete(listId) {
 		try {
-			const res = await fetch(`/api/shoppinglists/${listId}`, {
+			const res = await authFetch(`/api/shoppinglists/${listId}`, {
 				method: 'DELETE',
-				headers: { 'X-User-Id': 'temp-user' },
 			});
 			if (!res.ok) throw new Error(`HTTP ${res.status}`);
 			lists = lists.filter((l) => l.id !== listId);

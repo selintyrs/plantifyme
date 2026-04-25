@@ -2,12 +2,35 @@
 	import '../app.css';
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { loadDictionary } from '$lib/stores/dictionary.js';
+	import { initAuth, isAuthenticated } from '$lib/stores/auth.js';
 
 	let { children } = $props();
 
-	onMount(() => {
-		loadDictionary();
+	let initialized = $state(false);
+
+	const PUBLIC_ROUTES = ['/landing', '/login', '/signup'];
+
+	onMount(async () => {
+		await initAuth();
+		initialized = true;
+
+		const path = $page.url.pathname;
+		const isPublic = PUBLIC_ROUTES.some(r => path.startsWith(r));
+
+		if (!$isAuthenticated && !isPublic) {
+			goto('/landing');
+			return;
+		}
+		if ($isAuthenticated && isPublic) {
+			goto('/');
+			return;
+		}
+
+		if ($isAuthenticated) {
+			loadDictionary();
+		}
 	});
 
 	const navItems = [
@@ -42,27 +65,41 @@
 		if (href === '/') return currentPath === '/';
 		return currentPath.startsWith(href);
 	}
+
+	let isAuthRoute = $derived(
+		PUBLIC_ROUTES.some(r => $page.url.pathname.startsWith(r))
+	);
+
+	let showBottomNav = $derived(
+		!$page.url.pathname.startsWith('/products') && !isAuthRoute
+	);
 </script>
 
 <div id="app-shell">
-	<main>
-		{@render children()}
-	</main>
+	{#if initialized}
+		<main>
+			{@render children()}
+		</main>
 
-	{#if !$page.url.pathname.startsWith('/products')}
-		<nav class="bottom-nav">
-			{#each navItems as item}
-				<a
-					href={item.href}
-					class="nav-item"
-					class:active={isActive(item.href, $page.url.pathname)}
-					aria-label={item.label}
-				>
-					{@html item.icon}
-					<span>{item.label}</span>
-				</a>
-			{/each}
-		</nav>
+		{#if showBottomNav}
+			<nav class="bottom-nav">
+				{#each navItems as item}
+					<a
+						href={item.href}
+						class="nav-item"
+						class:active={isActive(item.href, $page.url.pathname)}
+						aria-label={item.label}
+					>
+						{@html item.icon}
+						<span>{item.label}</span>
+					</a>
+				{/each}
+			</nav>
+		{/if}
+	{:else}
+		<div class="loading-screen">
+			<div class="spinner"></div>
+		</div>
 	{/if}
 </div>
 
@@ -102,5 +139,27 @@
 	.nav-item :global(svg) {
 		width: 24px;
 		height: 24px;
+	}
+
+	.loading-screen {
+		position: fixed;
+		inset: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: var(--color-bg);
+	}
+
+	.spinner {
+		width: 40px;
+		height: 40px;
+		border: 3px solid var(--color-border);
+		border-top-color: var(--color-primary);
+		border-radius: 50%;
+		animation: spin 0.7s linear infinite;
+	}
+
+	@keyframes spin {
+		to { transform: rotate(360deg); }
 	}
 </style>

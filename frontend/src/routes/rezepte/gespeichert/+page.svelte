@@ -1,13 +1,14 @@
 <script>
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
+	import { authFetch } from '$lib/api.js';
 
 	let recipes = $state([]);
 	let isLoading = $state(true);
 
 	onMount(async () => {
 		try {
-			const res = await fetch('/api/saved-recipes?userId=temp-user');
+			const res = await authFetch('/api/saved-recipes');
 			if (res.ok) recipes = await res.json();
 		} catch (e) {
 			console.error('Fehler beim Laden:', e);

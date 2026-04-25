@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { matchResults, savedListId, itemIdMap } from '$lib/stores/shoppingList.js';
 	import { dictionaryStore } from '$lib/stores/dictionary.js';
+	import { authFetch } from '$lib/api.js';
 
 	let product = $state(null);
 	let genericFood = $state(null);
@@ -133,7 +134,7 @@
 		diyRecipes = [];
 		diyDisplayName = '';
 		try {
-			const res = await fetch(`/api/products/${productId}`);
+			const res = await authFetch(`/api/products/${productId}`);
 			if (res.status === 404) {
 				error = 'Produkt nicht gefunden.';
 				return;
@@ -152,7 +153,7 @@
 
 	async function checkIfSaved(productId) {
 		try {
-			const res = await fetch('/api/saved-products?userId=temp-user');
+			const res = await authFetch('/api/saved-products');
 			if (!res.ok) return;
 			const list = await res.json();
 			const found = list.find(p => p.productId === productId);
@@ -168,9 +169,8 @@
 	async function toggleSaved() {
 		if (isSavedProduct) {
 			try {
-				const res = await fetch(`/api/saved-products/${savedProductId}`, {
+				const res = await authFetch(`/api/saved-products/${savedProductId}`, {
 					method: 'DELETE',
-					headers: { 'X-User-Id': 'temp-user' },
 				});
 				if (res.ok) {
 					isSavedProduct = false;
@@ -182,9 +182,9 @@
 			}
 		} else {
 			try {
-				const res = await fetch('/api/saved-products', {
+				const res = await authFetch('/api/saved-products', {
 					method: 'POST',
-					headers: { 'Content-Type': 'application/json', 'X-User-Id': 'temp-user' },
+					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify({ productId: product.id, type: product.type }),
 				});
 				if (res.status === 201) {
@@ -214,7 +214,7 @@
 		product = null;
 		activeTab = 'naehrwerte';
 		try {
-			const res = await fetch(`/api/generic-foods/${foodId}`);
+			const res = await authFetch(`/api/generic-foods/${foodId}`);
 			if (res.status === 404) {
 				error = 'Produkt nicht gefunden.';
 				return;
@@ -250,7 +250,7 @@
 			const url = filter
 				? `/api/products/${$page.params.productId}/alternatives?filter=${filter}`
 				: `/api/products/${$page.params.productId}/alternatives`;
-			const res = await fetch(url);
+			const res = await authFetch(url);
 			if (!res.ok) throw new Error(`HTTP ${res.status}`);
 			alternatives = await res.json();
 			altImgStages = {};
@@ -287,9 +287,9 @@
 		replacedProductName = newProduct.name;
 
 		if ($savedListId && backendItemId) {
-			fetch(`/api/shoppinglists/${$savedListId}/items/${backendItemId}`, {
+			authFetch(`/api/shoppinglists/${$savedListId}/items/${backendItemId}`, {
 				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json', 'X-User-Id': 'temp-user' },
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ productId: newProduct.id }),
 			}).catch(e => console.error('Replace sync fehlgeschlagen:', e));
 		}
@@ -317,7 +317,7 @@
 		const subcategory = match?.subcategory || '';
 		if (!diyDisplayName) return;
 		try {
-			const res = await fetch(`/api/diy-recipes?displayName=${encodeURIComponent(diyDisplayName)}&subcategory=${encodeURIComponent(subcategory)}`);
+			const res = await authFetch(`/api/diy-recipes?displayName=${encodeURIComponent(diyDisplayName)}&subcategory=${encodeURIComponent(subcategory)}`);
 			if (!res.ok) return;
 			diyRecipes = await res.json();
 		} catch (e) {
@@ -372,9 +372,9 @@
 		}
 		if (ingredients.length === 0) return;
 		try {
-			const res = await fetch(`/api/shoppinglists/${$savedListId}/items/batch`, {
+			const res = await authFetch(`/api/shoppinglists/${$savedListId}/items/batch`, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json', 'X-User-Id': 'temp-user' },
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ recipeTitle: 'Plantified Eier', ingredients }),
 			});
 			if (res.ok) {
@@ -400,11 +400,11 @@
 			.sort((a, b) => a - b);
 
 		try {
-			const res = await fetch(
+			const res = await authFetch(
 				`/api/shoppinglists/${$savedListId}/items/${backendItemId}/replace-with-diy`,
 				{
 					method: 'POST',
-					headers: { 'Content-Type': 'application/json', 'X-User-Id': 'temp-user' },
+					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify({
 						diyRecipeId: recipe.id,
 						selectedIndexes,
