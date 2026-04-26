@@ -19,6 +19,35 @@
 	import { recentProducts, addRecentProduct } from "$lib/stores/recentProducts.js";
 	import { goto } from "$app/navigation";
 	import { authFetch } from "$lib/api.js";
+	import { currentUser } from "$lib/stores/user.js";
+
+	const ALLERGY_LABELS = {
+		nuts: 'Nüsse',
+		soy: 'Soja',
+		gluten: 'Gluten',
+		sesame: 'Sesam',
+		mustard: 'Senf',
+		celery: 'Sellerie',
+		lupins: 'Lupinen',
+	};
+
+	const DIET_MAP = {
+		highProtein: 'high protein',
+		lowCarb: 'low carb',
+		glutenFree: 'gluten free',
+		lowCalorie: 'low calorie',
+	};
+
+	function buildPreferences() {
+		const user = $currentUser;
+		const allergies = (user?.allergies ?? [])
+			.map(k => ALLERGY_LABELS[k])
+			.filter(Boolean);
+		const diet = (user?.dietaryPreferences ?? [])
+			.map(k => DIET_MAP[k])
+			.filter(Boolean);
+		return { allergies, budget: 'medium', diet };
+	}
 
 	// ── Core state ────────────────────────────────────────────────────────────
 	let isLoading = $state(false);
@@ -177,7 +206,7 @@
 				body: JSON.stringify({
 					items: buildRequestItems($shoppingListStore),
 					supermarket: $supermarketStore === 'Coop' ? 'coop' : $supermarketStore === 'Aldi' ? 'aldi' : $supermarketStore,
-					preferences: { allergies: [], budget: "medium", diet: [] },
+					preferences: buildPreferences(),
 				}),
 			});
 			if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -208,7 +237,7 @@
 				body: JSON.stringify({
 					items: buildRequestItems([item]),
 					supermarket: $supermarketStore === 'Coop' ? 'coop' : $supermarketStore === 'Aldi' ? 'aldi' : $supermarketStore,
-					preferences: { allergies: [], budget: "medium", diet: [] },
+					preferences: buildPreferences(),
 				}),
 			});
 			if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -232,6 +261,10 @@ if (matches.length > 0) {
 
 	// ── Supermarkt Modal ──────────────────────────────────────────────────────
 	function openSupermarketModal() {
+		if ($supermarketStore && !$isVeganized) {
+			plantifyMatch();
+			return;
+		}
 		supermarketDraft = $supermarketStore;
 		supermarketModalOpen = true;
 	}

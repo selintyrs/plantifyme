@@ -5,7 +5,7 @@
 	import { authFetch } from '$lib/api.js';
 	import { currentUser } from '$lib/stores/user.js';
 
-	let FIRST_NAME = $derived(($currentUser?.firstName || 'dort').split(' ')[0]);
+	let firstName = $derived($currentUser?.firstName ?? '');
 
 	let shoppingLists = $state([]);
 	let dictionary = $state([]);
@@ -122,9 +122,10 @@
 	// ── Derived ───────────────────────────────────────────────────────────
 	let greeting = $derived.by(() => {
 		const h = new Date().getHours();
-		if (h < 12) return 'Guten Morgen';
-		if (h < 18) return 'Guten Tag';
-		return 'Guten Abend';
+		let greet = 'Guten Tag';
+		if (h < 12) greet = 'Guten Morgen';
+		else if (h >= 18) greet = 'Guten Abend';
+		return firstName ? `${greet}, ${firstName}` : greet;
 	});
 
 	let totalAnimals = $derived.by(() => {
@@ -195,7 +196,7 @@
 
 	<!-- 2. Greeting ───────────────────────────────────────────────────────── -->
 	<div class="hello">
-		<h1 class="hello-title">{greeting}, {FIRST_NAME}</h1>
+		<h1 class="hello-title">{greeting}</h1>
 	</div>
 
 	<!-- 3. Active list quick-access ───────────────────────────────────────── -->

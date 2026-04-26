@@ -4,6 +4,17 @@
 	import { goto } from '$app/navigation';
 	import { recipeCreationStore, resetRecipeCreation } from '$lib/stores/recipeCreation.js';
 	import { authFetch } from '$lib/api.js';
+	import { currentUser } from '$lib/stores/user.js';
+
+	const ALLERGY_LABELS = {
+		nuts: 'Nüsse',
+		soy: 'Soja',
+		gluten: 'Gluten',
+		sesame: 'Sesam',
+		mustard: 'Senf',
+		celery: 'Sellerie',
+		lupins: 'Lupinen',
+	};
 
 	let recipeId = $page.params.recipeId;
 	let baseRecipe = $state(null);
@@ -27,8 +38,37 @@
 	let additionalNotes = $state('');
 	let storeData = $state(null);
 
+	let prefilledFromUser = $state(false);
+
 	onMount(() => {
 		loadData(recipeId);
+	});
+
+	$effect(() => {
+		const user = $currentUser;
+		if (!user || prefilledFromUser) return;
+
+		const userAllergies = user.allergies ?? [];
+		nutFree = userAllergies.includes('nuts');
+		soyFree = userAllergies.includes('soy');
+		glutenFree = userAllergies.includes('gluten');
+
+		const fallbackLabels = userAllergies
+			.filter(a => !['nuts', 'soy', 'gluten'].includes(a))
+			.map(a => ALLERGY_LABELS[a])
+			.filter(Boolean);
+		const userCustom = (user.customAllergies ?? '').trim();
+		const combined = [...fallbackLabels, ...(userCustom ? [userCustom] : [])].join(', ');
+		if (combined) allergies = combined;
+
+		if (user.dietaryPreferences?.length) {
+			const prefs = user.dietaryPreferences;
+			highProtein = prefs.includes('highProtein');
+			lowCarb = prefs.includes('lowCarb');
+			if (prefs.includes('glutenFree')) glutenFree = true;
+		}
+
+		prefilledFromUser = true;
 	});
 
 	async function loadData(id) {

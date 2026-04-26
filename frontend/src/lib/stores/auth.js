@@ -88,6 +88,12 @@ export async function signup(connection = null) {
 export async function logout() {
 	const client = get(authClient);
 	if (!client) return;
+
+	try {
+		localStorage.removeItem('plantify_coach_chat');
+		localStorage.removeItem('recentProducts');
+	} catch {}
+
 	await client.logout({
 		logoutParams: {
 			returnTo: window.location.origin + '/landing',
