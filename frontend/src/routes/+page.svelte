@@ -3,9 +3,9 @@
 	import { onMount } from 'svelte';
 	import { infoArticles, categories } from '$lib/data/infoArticles.js';
 	import { authFetch } from '$lib/api.js';
-	import { user } from '$lib/stores/auth.js';
+	import { currentUser } from '$lib/stores/user.js';
 
-	let FIRST_NAME = $derived(($user?.given_name || $user?.name || 'dort').split(' ')[0]);
+	let FIRST_NAME = $derived(($currentUser?.firstName || 'dort').split(' ')[0]);
 
 	let shoppingLists = $state([]);
 	let dictionary = $state([]);

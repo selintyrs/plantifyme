@@ -5,6 +5,7 @@
 	import { goto } from '$app/navigation';
 	import { loadDictionary } from '$lib/stores/dictionary.js';
 	import { initAuth, isAuthenticated } from '$lib/stores/auth.js';
+	import { loadCurrentUser } from '$lib/stores/user.js';
 
 	let { children } = $props();
 
@@ -14,23 +15,38 @@
 
 	onMount(async () => {
 		await initAuth();
-		initialized = true;
 
 		const path = $page.url.pathname;
 		const isPublic = PUBLIC_ROUTES.some(r => path.startsWith(r));
+		const isOnboarding = path.startsWith('/onboarding');
 
 		if (!$isAuthenticated && !isPublic) {
 			goto('/landing');
+			initialized = true;
 			return;
 		}
 		if ($isAuthenticated && isPublic) {
 			goto('/');
+			initialized = true;
 			return;
 		}
 
 		if ($isAuthenticated) {
+			const user = await loadCurrentUser();
+			if (user && !user.onboardingCompleted && !isOnboarding) {
+				goto('/onboarding');
+				initialized = true;
+				return;
+			}
+			if (user && user.onboardingCompleted && isOnboarding) {
+				goto('/');
+				initialized = true;
+				return;
+			}
 			loadDictionary();
 		}
+
+		initialized = true;
 	});
 
 	const navItems = [
@@ -71,7 +87,9 @@
 	);
 
 	let showBottomNav = $derived(
-		!$page.url.pathname.startsWith('/products') && !isAuthRoute
+		!$page.url.pathname.startsWith('/products') &&
+		!$page.url.pathname.startsWith('/onboarding') &&
+		!isAuthRoute
 	);
 </script>
 
