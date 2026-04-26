@@ -11,13 +11,19 @@
 
 	let initialized = $state(false);
 
-	const PUBLIC_ROUTES = ['/landing', '/login', '/signup'];
+	const PUBLIC_PREFIXES = ['/landing', '/login', '/signup'];
+	const PUBLIC_EXACT = ['/info/ueber-uns', '/info/impressum', '/info/datenschutz'];
+
+	function isPublicPath(path) {
+		if (PUBLIC_EXACT.includes(path)) return true;
+		return PUBLIC_PREFIXES.some(r => path.startsWith(r));
+	}
 
 	onMount(async () => {
 		await initAuth();
 
 		const path = $page.url.pathname;
-		const isPublic = PUBLIC_ROUTES.some(r => path.startsWith(r));
+		const isPublic = isPublicPath(path);
 		const isOnboarding = path.startsWith('/onboarding');
 
 		if (!$isAuthenticated && !isPublic) {
@@ -82,14 +88,10 @@
 		return currentPath.startsWith(href);
 	}
 
-	let isAuthRoute = $derived(
-		PUBLIC_ROUTES.some(r => $page.url.pathname.startsWith(r))
-	);
-
 	let showBottomNav = $derived(
 		!$page.url.pathname.startsWith('/products') &&
 		!$page.url.pathname.startsWith('/onboarding') &&
-		!isAuthRoute
+		!isPublicPath($page.url.pathname)
 	);
 </script>
 
