@@ -1257,25 +1257,29 @@ if (matches.length > 0) {
 							<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
 							<span class="cat-card-name">Milchprodukte & Eier</span>
 						</button>
-						<button class="cat-card" onclick={() => selectedCategory = 'Fleisch- & Fischalternativen'}>
+						<button class="cat-card" onclick={() => selectedCategory = 'Fleisch & Fisch'}>
 							<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2s2-.9 2-2V2"/><line x1="4" y1="8" x2="4" y2="22"/><line x1="20" y1="5" x2="20" y2="22"/><path d="M20 5a2 2 0 0 0-2 2v3a2 2 0 0 0 4 0V7a2 2 0 0 0-2-2z"/></svg>
-							<span class="cat-card-name">Fleisch- & Fischalternativen</span>
+							<span class="cat-card-name">Fleisch & Fisch</span>
 						</button>
 						<button class="cat-card" onclick={() => selectedCategory = 'Saucen & Gewürze'}>
 							<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6"/><path d="M8 3c-2 1-3 3-3 6v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9c0-3-1-5-3-6"/><line x1="5" y1="13" x2="19" y2="13"/></svg>
 							<span class="cat-card-name">Saucen & Gewürze</span>
 						</button>
-						<button class="cat-card" onclick={() => selectedCategory = 'Fertig & Tiefkühl'}>
+						<button class="cat-card" onclick={() => selectedCategory = 'Fertiggerichte'}>
 							<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><path d="m20 16-4-4 4-4"/><path d="m4 8 4 4-4 4"/><path d="m16 4-4 4-4-4"/><path d="m8 20 4-4 4 4"/></svg>
-							<span class="cat-card-name">Fertig & Tiefkühl</span>
+							<span class="cat-card-name">Fertiggerichte</span>
 						</button>
 						<button class="cat-card" onclick={() => selectedCategory = 'Teigwaren & Getreide'}>
 							<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 22 16 8"/><path d="M3.47 12.53 5 11l1.53 1.53a3.5 3.5 0 0 1 0 4.94L5 19l-1.53-1.53a3.5 3.5 0 0 1 0-4.94z"/><path d="M7.47 8.53 9 7l1.53 1.53a3.5 3.5 0 0 1 0 4.94L9 15l-1.53-1.53a3.5 3.5 0 0 1 0-4.94z"/><path d="M11.47 4.53 13 3l1.53 1.53a3.5 3.5 0 0 1 0 4.94L13 11l-1.53-1.53a3.5 3.5 0 0 1 0-4.94z"/></svg>
 							<span class="cat-card-name">Teigwaren & Getreide</span>
 						</button>
-						<button class="cat-card" onclick={() => selectedCategory = 'Snacks & Süsswaren'}>
+						<button class="cat-card" onclick={() => selectedCategory = 'Müesli & Cerealien'}>
+							<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h20"/><path d="M5 12v3a4 4 0 0 0 4 4h6a4 4 0 0 0 4-4v-3"/><circle cx="8" cy="9" r="1"/><circle cx="12" cy="7" r="1"/><circle cx="16" cy="9" r="1"/></svg>
+							<span class="cat-card-name">Müesli & Cerealien</span>
+						</button>
+						<button class="cat-card" onclick={() => selectedCategory = 'Süsses & Snacks'}>
 							<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="8" cy="9" r="1"/><circle cx="15" cy="9" r="1"/><circle cx="10" cy="14" r="1"/><circle cx="15" cy="14" r="1"/></svg>
-							<span class="cat-card-name">Snacks & Süsswaren</span>
+							<span class="cat-card-name">Süsses & Snacks</span>
 						</button>
 						<button class="cat-card" onclick={() => selectedCategory = 'Getränke'}>
 							<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V8z"/><line x1="6" y1="2" x2="6" y2="4"/><line x1="10" y1="2" x2="10" y2="4"/><line x1="14" y1="2" x2="14" y2="4"/></svg>
