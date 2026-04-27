@@ -107,10 +107,82 @@
 		if (!hasSelection) return;
 		if ($savedListId) {
 			await addToExistingList($savedListId);
-		} else if ($isVeganized && $supermarketStore) {
-			await createListFromRecipe($supermarketStore);
+		} else if ($isVeganized && $matchResults.length > 0) {
+			await addToLocalVeganizedList();
 		} else {
 			supermarketModalOpen = true;
+		}
+	}
+
+	async function addToLocalVeganizedList() {
+		addedVisible = true;
+
+		const supermarket = $supermarketStore;
+		if (!supermarket) {
+			addedVisible = false;
+			supermarketModalOpen = true;
+			return;
+		}
+
+		try {
+			const apiSupermarket = supermarket === 'Migros' ? 'Migros' : supermarket.toLowerCase();
+			const res = await authFetch('/api/shoppinglists/from-recipe', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					recipeTitle: 'Plantified Eier',
+					supermarket: apiSupermarket,
+					ingredients: selectedIngredients,
+				}),
+			});
+
+			if (!res.ok) throw new Error('Match failed');
+			const tempList = await res.json();
+			const newItems = tempList.items || [];
+
+			if (tempList.id) {
+				authFetch(`/api/shoppinglists/${tempList.id}`, { method: 'DELETE' })
+					.catch(e => console.warn('Cleanup failed:', e));
+			}
+
+			const currentMax = $shoppingListStore.length > 0
+				? Math.max(...$shoppingListStore.map(i => i.id))
+				: 0;
+
+			const newStoreItems = newItems.map((item, idx) => ({
+				id: currentMax + idx + 1,
+				displayName: item.displayName || item.name,
+				type: item.type,
+				subcategory: item.subcategory || '',
+				quantity: item.quantity || 1,
+				frontendDictionaryId: null,
+				uiCategory: findUiCategory(item),
+			}));
+
+			const newMatches = newItems.map((item, idx) => ({
+				itemId: (currentMax + idx + 1).toString(),
+				type: item.type,
+				displayName: item.displayName || item.name,
+				subcategory: item.subcategory || '',
+				uiCategory: findUiCategory(item),
+				suggestedProduct: (item.type === 'A' || item.type === 'B') && item.productId
+					? { id: item.productId, name: item.name, price: item.price }
+					: null,
+				genericFood: item.type === 'C' && item.genericFoodId
+					? { id: item.genericFoodId, name: item.name }
+					: null,
+				diyGroupLabel: item.diyGroupLabel || 'Zutat für Plantified Eier',
+			}));
+
+			shoppingListStore.update(prev => [...prev, ...newStoreItems]);
+			matchResults.update(prev => [...prev, ...newMatches]);
+
+			removeEggItemsLocal();
+
+			setTimeout(() => goto('/liste'), 1500);
+		} catch (e) {
+			console.error('Lokales Hinzufügen fehlgeschlagen:', e);
+			addedVisible = false;
 		}
 	}
 
@@ -159,12 +231,50 @@
 					return updated;
 				});
 				isVeganized.set(true);
+
+				await removeEggItems(listId);
+
 				addedVisible = true;
 				setTimeout(() => goto('/liste'), 1500);
 			}
 		} catch (e) {
 			console.error('Zutaten hinzufügen fehlgeschlagen:', e);
 		}
+	}
+
+	async function removeEggItems(listId) {
+		const eggItems = $shoppingListStore.filter(item => item.displayName?.toLowerCase() === 'eier');
+		if (eggItems.length === 0) return;
+
+		const map = $itemIdMap;
+		for (const eggItem of eggItems) {
+			const backendItemId = map[eggItem.id.toString()];
+			if (!backendItemId) continue;
+			try {
+				await authFetch(`/api/shoppinglists/${listId}/items/${backendItemId}`, { method: 'DELETE' });
+			} catch (e) {
+				console.warn('Egg item delete failed:', e);
+			}
+		}
+
+		const eggItemIds = eggItems.map(item => item.id.toString());
+		shoppingListStore.update(prev => prev.filter(item => item.displayName?.toLowerCase() !== 'eier'));
+		matchResults.update(prev => prev.filter(r => !eggItemIds.includes(r.itemId)));
+		itemIdMap.update(prev => {
+			const updated = { ...prev };
+			for (const id of eggItemIds) delete updated[id];
+			return updated;
+		});
+	}
+
+	function removeEggItemsLocal() {
+		const eggItemIds = $shoppingListStore
+			.filter(item => item.displayName?.toLowerCase() === 'eier')
+			.map(item => item.id.toString());
+		if (eggItemIds.length === 0) return;
+
+		shoppingListStore.update(prev => prev.filter(item => item.displayName?.toLowerCase() !== 'eier'));
+		matchResults.update(prev => prev.filter(r => !eggItemIds.includes(r.itemId)));
 	}
 
 	async function createListFromRecipe(supermarket) {

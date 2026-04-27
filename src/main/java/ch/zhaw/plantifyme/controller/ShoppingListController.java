@@ -112,6 +112,20 @@ public class ShoppingListController {
         }
     }
 
+    @DeleteMapping("/shoppinglists/{listId}/items/{itemId}")
+    public ResponseEntity<ShoppingList> removeItem(
+            @PathVariable String listId,
+            @PathVariable String itemId) {
+        String userId = AuthUtil.requireCurrentUserId();
+        try {
+            return shoppingListService.removeItem(listId, userId, itemId)
+                    .map(ResponseEntity::ok)
+                    .orElse(ResponseEntity.notFound().build());
+        } catch (OwnershipException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
     @PatchMapping("/shoppinglists/{listId}/items/{itemId}")
     public ResponseEntity<ShoppingList> replaceItem(
             @PathVariable String listId,

@@ -175,6 +175,31 @@ public class ShoppingListService {
      *
      * @throws OwnershipException if userId does not match the list owner
      */
+    public Optional<ShoppingList> removeItem(String listId, String userId, String itemId) {
+        Optional<ShoppingList> optionalList = shoppingListRepository.findById(listId);
+        if (optionalList.isEmpty()) {
+            return Optional.empty();
+        }
+
+        ShoppingList list = optionalList.get();
+
+        if (!list.getUserId().equals(userId)) {
+            throw new OwnershipException("User " + userId + " does not own list " + listId);
+        }
+
+        if (list.getItems() == null) {
+            return Optional.empty();
+        }
+
+        boolean removed = list.getItems().removeIf(i -> itemId.equals(i.getItemId()));
+        if (!removed) {
+            return Optional.empty();
+        }
+
+        ShoppingList saved = shoppingListRepository.save(list);
+        return Optional.of(saved);
+    }
+
     public Optional<ShoppingList> replaceItem(String listId, String userId, String itemId, String newProductId) {
         Optional<ShoppingList> optionalList = shoppingListRepository.findById(listId);
         if (optionalList.isEmpty()) {
