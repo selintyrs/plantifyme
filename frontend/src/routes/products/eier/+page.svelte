@@ -172,6 +172,8 @@
 					? { id: item.genericFoodId, name: item.name }
 					: null,
 				diyGroupLabel: item.diyGroupLabel || 'Zutat für Plantified Eier',
+				fallbackDiyRecipeId: item.fallbackDiyRecipeId ?? null,
+				fallbackDiyRecipeTitle: item.fallbackDiyRecipeTitle ?? null,
 			}));
 
 			shoppingListStore.update(prev => [...prev, ...newStoreItems]);
@@ -221,6 +223,8 @@
 						? { id: item.genericFoodId, name: item.name }
 						: null,
 					diyGroupLabel: item.diyGroupLabel || null,
+					fallbackDiyRecipeId: item.fallbackDiyRecipeId ?? null,
+					fallbackDiyRecipeTitle: item.fallbackDiyRecipeTitle ?? null,
 				}));
 
 				shoppingListStore.update(prev => [...prev, ...newStoreItems]);
@@ -317,6 +321,8 @@
 						? { id: item.genericFoodId, name: item.name }
 						: null,
 					diyGroupLabel: item.diyGroupLabel || null,
+					fallbackDiyRecipeId: item.fallbackDiyRecipeId ?? null,
+					fallbackDiyRecipeTitle: item.fallbackDiyRecipeTitle ?? null,
 				}));
 
 				resetForLoad(storeItems);

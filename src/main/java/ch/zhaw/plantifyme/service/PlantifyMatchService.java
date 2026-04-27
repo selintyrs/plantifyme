@@ -1,5 +1,6 @@
 package ch.zhaw.plantifyme.service;
 
+import ch.zhaw.plantifyme.model.DiyRecipe;
 import ch.zhaw.plantifyme.model.GenericFood;
 import ch.zhaw.plantifyme.model.SupermarketProduct;
 import ch.zhaw.plantifyme.model.dto.MatchPreferences;
@@ -7,6 +8,7 @@ import ch.zhaw.plantifyme.model.dto.MatchRequestItem;
 import ch.zhaw.plantifyme.model.dto.MatchResult;
 import ch.zhaw.plantifyme.model.dto.PlantifyMatchRequest;
 import ch.zhaw.plantifyme.model.dto.PlantifyMatchResponse;
+import ch.zhaw.plantifyme.repository.DiyRecipeRepository;
 import ch.zhaw.plantifyme.repository.GenericFoodRepository;
 import ch.zhaw.plantifyme.repository.SupermarketProductRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +26,9 @@ public class PlantifyMatchService {
 
     @Autowired
     private GenericFoodRepository genericFoodRepository;
+
+    @Autowired
+    private DiyRecipeRepository diyRecipeRepository;
 
     public PlantifyMatchResponse match(PlantifyMatchRequest request) {
         List<MatchResult> results = new ArrayList<>();
@@ -48,9 +53,16 @@ public class PlantifyMatchService {
                 if (!candidates.isEmpty()) {
                     result.setSuggestedProduct(candidates.get(0));
                 } else {
-                    result.setType("C");
-                    List<GenericFood> nameMatches = genericFoodRepository.findByName(item.getDisplayName());
-                    if (!nameMatches.isEmpty()) result.setGenericFood(nameMatches.get(0));
+                    List<DiyRecipe> matchingDiys = diyRecipeRepository.findByMatchingDisplayName(item.getDisplayName());
+                    if (!matchingDiys.isEmpty()) {
+                        DiyRecipe diy = matchingDiys.get(0);
+                        result.setFallbackDiyRecipeId(diy.getId());
+                        result.setFallbackDiyRecipeTitle(diy.getTitle());
+                    } else {
+                        result.setType("C");
+                        List<GenericFood> nameMatches = genericFoodRepository.findByName(item.getDisplayName());
+                        if (!nameMatches.isEmpty()) result.setGenericFood(nameMatches.get(0));
+                    }
                 }
             }
 

@@ -677,6 +677,14 @@ if (matches.length > 0) {
 											<span class="item-plantified"
 												>{result.diyGroupLabel || `Plantified ${result.displayName}`}</span
 											>
+										{:else if result.fallbackDiyRecipeId}
+											<span class="item-name">{result.displayName}</span>
+											<span class="item-diy-fallback">
+												<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+													<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/>
+												</svg>
+												Selbst machen: {result.fallbackDiyRecipeTitle}
+											</span>
 										{:else}
 											<span class="item-name"
 												>{result.displayName}</span
@@ -801,6 +809,8 @@ if (matches.length > 0) {
 												try {
 													if (result.displayName === 'Eier') {
 														goto('/products/eier');
+													} else if (result.fallbackDiyRecipeId) {
+														goto(`/rezepte/diy/${result.fallbackDiyRecipeId}`);
 													} else if (result.suggestedProduct) {
 														goto(`/products/${result.suggestedProduct.id}`);
 													} else if (result.genericFood) {
@@ -1680,6 +1690,15 @@ if (matches.length > 0) {
 	.item-no-match {
 		font-size: 0.75rem;
 		color: #ef4444;
+	}
+
+	.item-diy-fallback {
+		font-size: 0.75rem;
+		color: var(--color-primary);
+		font-weight: 500;
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
 	}
 
 	/* ── Quantity controls ────────────────────────────────────────────────── */

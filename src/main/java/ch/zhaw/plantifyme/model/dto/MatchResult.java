@@ -15,4 +15,6 @@ public class MatchResult {
     private String type;
     private SupermarketProduct suggestedProduct; // null for type C
     private GenericFood genericFood;             // null for type A/B
+    private String fallbackDiyRecipeId;
+    private String fallbackDiyRecipeTitle;
 }
