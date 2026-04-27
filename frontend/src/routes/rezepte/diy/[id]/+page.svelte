@@ -1,13 +1,23 @@
 <script>
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { authFetch } from '$lib/api.js';
+	import { savedListId, matchResults, itemIdMap, isVeganized, shoppingListStore, resetForLoad, resetAll } from '$lib/stores/shoppingList.js';
+	import { dictionaryStore } from '$lib/stores/dictionary.js';
+	import { supermarketStore } from '$lib/stores/supermarket.js';
 
 	let id = $page.params.id;
 	let recipe = $state(null);
 	let isLoading = $state(true);
 	let error = $state(null);
 	let activeTab = $state('zutaten');
+
+	let ingredientModalOpen = $state(false);
+	let ingredientCheckedMap = $state({});
+	let addedToListVisible = $state(false);
+	let supermarketModalOpen = $state(false);
+	let selectedIngredients = $state([]);
 
 	onMount(async () => {
 		try {
@@ -24,6 +34,199 @@
 			isLoading = false;
 		}
 	});
+
+	function openIngredientModal() {
+		const map = {};
+		(recipe.ingredients || []).forEach((ing, i) => {
+			if (ing.name !== 'Wasser') map[i] = true;
+		});
+		ingredientCheckedMap = map;
+		ingredientModalOpen = true;
+	}
+
+	function collectSelectedIngredients() {
+		return Object.entries(ingredientCheckedMap)
+			.filter(([, v]) => v)
+			.map(([k]) => {
+				const ing = recipe.ingredients[parseInt(k)];
+				return {
+					name: ing.name,
+					amount: ing.amount,
+					unit: ing.unit,
+					type: ing.type || 'C',
+					matchingDisplayName: ing.matchingDisplayName,
+					matchingSubcategory: ing.matchingSubcategory,
+				};
+			});
+	}
+
+	async function submitToShoppingList() {
+		ingredientModalOpen = false;
+		selectedIngredients = collectSelectedIngredients();
+
+		if ($savedListId) {
+			await addToExistingList($savedListId);
+		} else {
+			supermarketModalOpen = true;
+		}
+	}
+
+	function findUiCategory(item) {
+		if (item.uiCategory && item.uiCategory !== '') return item.uiCategory;
+
+		const dict = $dictionaryStore;
+		if (dict && dict.length > 0) {
+			const entry = dict.find(e => e.displayName === item.displayName);
+			if (entry) return entry.uiCategory;
+		}
+
+		if (item.type === 'C') {
+			const name = (item.displayName || item.name || '').toLowerCase();
+
+			const gemuese = ['tomaten', 'kartoffeln', 'zwiebeln', 'zwiebel', 'knoblauch',
+				'paprika', 'karotten', 'brokkoli', 'zucchetti', 'avocado', 'gurke',
+				'pilze', 'pak choi', 'lauch', 'frühlingszwiebeln', 'sojasprossen',
+				'mais', 'erbsen', 'edamame', 'jalapeños', 'bananen', 'äpfel',
+				'zitronen', 'limetten', 'heidelbeeren', 'erdbeeren', 'salat',
+				'cherrytomaten', 'rotkraut', 'champignons'];
+			if (gemuese.some(g => name.includes(g))) return 'Obst & Gemüse';
+
+			const gewuerze = ['salz', 'pfeffer', 'oregano', 'basilikum', 'thymian',
+				'kurkuma', 'zimt', 'muskat', 'dill', 'salbei', 'petersilie',
+				'kreuzkümmel', 'chiliflocken', 'paprikapulver', 'knoblauchpulver',
+				'ingwer', 'kapern', 'schnittlauch'];
+			if (gewuerze.some(g => name.includes(g))) return 'Kräuter & Gewürze';
+
+			const oele = ['olivenöl', 'rapsöl', 'kokosöl', 'sesamöl', 'öl'];
+			if (oele.some(g => name.includes(g))) return 'Öle & Fette';
+
+			const nuesse = ['cashews', 'walnüsse', 'erdnüsse', 'pinienkerne',
+				'haselnüsse', 'sesam', 'chiasamen', 'kokosflocken'];
+			if (nuesse.some(g => name.includes(g))) return 'Nüsse & Samen';
+
+			const getreide = ['haferflocken', 'mehl', 'reis', 'paniermehl',
+				'backpulver', 'hefeflocken', 'rollgerste', 'quinoa'];
+			if (getreide.some(g => name.includes(g))) return 'Getreide & Hülsenfrüchte';
+		}
+
+		return 'Sonstiges';
+	}
+
+	async function addToExistingList(listId) {
+		try {
+			const res = await authFetch(`/api/shoppinglists/${listId}/items/batch`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ recipeTitle: recipe.title, ingredients: selectedIngredients }),
+			});
+			if (res.ok) {
+				const updatedList = await res.json();
+				const expectedLabel = 'Zutat für ' + recipe.title;
+				const newItems = (updatedList.items || []).filter(item => item.diyGroupLabel === expectedLabel);
+
+				const currentMax = $shoppingListStore.length > 0
+					? Math.max(...$shoppingListStore.map(i => i.id))
+					: 0;
+
+				const newStoreItems = newItems.map((item, idx) => ({
+					id: currentMax + idx + 1,
+					displayName: item.displayName || item.name,
+					type: item.type,
+					subcategory: item.subcategory || '',
+					quantity: item.quantity || 1,
+					frontendDictionaryId: null,
+					uiCategory: findUiCategory(item),
+				}));
+
+				const newMatches = newItems.map((item, idx) => ({
+					itemId: (currentMax + idx + 1).toString(),
+					type: item.type,
+					displayName: item.displayName || item.name,
+					subcategory: item.subcategory || '',
+					uiCategory: findUiCategory(item),
+					suggestedProduct: (item.type === 'A' || item.type === 'B') && item.productId
+						? { id: item.productId, name: item.name, price: item.price }
+						: null,
+					genericFood: item.type === 'C' && item.genericFoodId
+						? { id: item.genericFoodId, name: item.name }
+						: null,
+					diyGroupLabel: item.diyGroupLabel || null,
+				}));
+
+				shoppingListStore.update(prev => [...prev, ...newStoreItems]);
+				matchResults.update(prev => [...prev, ...newMatches]);
+				itemIdMap.update(prev => {
+					const updated = { ...prev };
+					for (const item of newItems) updated[item.itemId] = item.itemId;
+					return updated;
+				});
+				isVeganized.set(true);
+
+				addedToListVisible = true;
+				setTimeout(() => { addedToListVisible = false; goto('/liste'); }, 1500);
+			}
+		} catch (e) {
+			console.error('Zur Liste hinzufügen fehlgeschlagen:', e);
+		}
+	}
+
+	async function createListFromRecipe(supermarket) {
+		supermarketModalOpen = false;
+		addedToListVisible = true;
+
+		const apiSupermarket = supermarket === 'Migros' ? 'Migros' : supermarket.toLowerCase();
+
+		try {
+			const res = await authFetch('/api/shoppinglists/from-recipe', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ recipeTitle: recipe.title, supermarket: apiSupermarket, ingredients: selectedIngredients }),
+			});
+			if (res.ok) {
+				const newList = await res.json();
+				resetAll();
+				savedListId.set(newList.id);
+				supermarketStore.set(supermarket);
+
+				const listItems = newList.items || [];
+				const storeItems = listItems.map((item, idx) => ({
+					id: idx + 1,
+					displayName: item.displayName || item.name,
+					type: item.type,
+					subcategory: item.subcategory || '',
+					quantity: item.quantity || 1,
+					frontendDictionaryId: null,
+					uiCategory: findUiCategory(item),
+				}));
+
+				const newMatches = listItems.map((item, idx) => ({
+					itemId: (idx + 1).toString(),
+					type: item.type,
+					displayName: item.displayName || item.name,
+					subcategory: item.subcategory || '',
+					uiCategory: findUiCategory(item),
+					suggestedProduct: (item.type === 'A' || item.type === 'B') && item.productId
+						? { id: item.productId, name: item.name, price: item.price, supermarket }
+						: null,
+					genericFood: item.type === 'C' && item.genericFoodId
+						? { id: item.genericFoodId, name: item.name }
+						: null,
+					diyGroupLabel: item.diyGroupLabel || null,
+				}));
+
+				resetForLoad(storeItems);
+				matchResults.set(newMatches);
+				isVeganized.set(true);
+
+				setTimeout(() => { addedToListVisible = false; goto('/liste'); }, 1500);
+			} else {
+				addedToListVisible = false;
+			}
+		} catch (e) {
+			console.error('Liste erstellen fehlgeschlagen:', e);
+			addedToListVisible = false;
+		}
+	}
 
 	function formatIngredientAmount(ing) {
 		if (!ing.amount && ing.amount !== 0) return '';
@@ -119,6 +322,16 @@
 					</div>
 				{/each}
 			</div>
+
+			<div class="list-btn-wrapper">
+				<button class="list-btn" onclick={openIngredientModal}>
+					<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/>
+						<path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/>
+					</svg>
+					Zur Einkaufsliste hinzufügen
+				</button>
+			</div>
 		{/if}
 
 		<!-- Tab: Zubereitung -->
@@ -134,6 +347,90 @@
 		{/if}
 	{/if}
 </div>
+
+<!-- Added confirmation -->
+{#if addedToListVisible}
+	<div class="added-confirmation">
+		<div class="added-circle">
+			<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+				<polyline points="20 6 9 17 4 12"/>
+			</svg>
+		</div>
+		<p class="added-text">Zur Einkaufsliste hinzugefügt</p>
+	</div>
+{/if}
+
+<!-- Supermarkt-Auswahl Modal -->
+{#if supermarketModalOpen}
+	<div class="modal-backdrop" onclick={() => supermarketModalOpen = false} role="presentation">
+		<div class="modal-sheet" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Supermarkt auswählen" tabindex="-1">
+			<div class="modal-header">
+				<span class="modal-title">Neuer Einkaufszettel</span>
+				<button class="modal-close" onclick={() => supermarketModalOpen = false} aria-label="Schliessen">
+					<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M18 6 6 18M6 6l12 12"/>
+					</svg>
+				</button>
+			</div>
+			<p class="modal-subtitle">Wähle deinen Supermarkt. Die Zutaten werden mit Produkten aus deinem Supermarkt abgeglichen.</p>
+			<div class="supermarket-list">
+				<button class="supermarket-btn" onclick={() => createListFromRecipe('Migros')}>
+					<span class="supermarket-name">Migros</span>
+					<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<path d="m9 18 6-6-6-6"/>
+					</svg>
+				</button>
+				<button class="supermarket-btn" onclick={() => createListFromRecipe('Coop')}>
+					<span class="supermarket-name">Coop</span>
+					<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<path d="m9 18 6-6-6-6"/>
+					</svg>
+				</button>
+				<button class="supermarket-btn" onclick={() => createListFromRecipe('Aldi')}>
+					<span class="supermarket-name">Aldi</span>
+					<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<path d="m9 18 6-6-6-6"/>
+					</svg>
+				</button>
+			</div>
+			<div class="modal-footer">
+				<button class="modal-cancel" onclick={() => supermarketModalOpen = false}>Abbrechen</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Ingredient Modal -->
+{#if ingredientModalOpen}
+	<div class="modal-backdrop" onclick={() => ingredientModalOpen = false} role="presentation">
+		<div class="modal-sheet" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Zutaten auswählen" tabindex="-1">
+			<div class="modal-header">
+				<span class="modal-title">Zutaten auswählen</span>
+				<button class="modal-close" onclick={() => ingredientModalOpen = false} aria-label="Schliessen">
+					<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M18 6 6 18M6 6l12 12"/>
+					</svg>
+				</button>
+			</div>
+			<p class="modal-subtitle">Wähle die Zutaten ab, die du nicht auf deiner Einkaufsliste benötigst (z.B. weil du sie schon zuhause hast).</p>
+			<div class="modal-list">
+				{#each recipe.ingredients || [] as ing, i}
+					{#if ing.name !== 'Wasser'}
+						<label class="modal-item">
+							<input type="checkbox" class="modal-checkbox" bind:checked={ingredientCheckedMap[i]} />
+							<span class="modal-item-name">{ing.name}</span>
+							<span class="modal-item-amount">{formatIngredientAmount(ing)}</span>
+						</label>
+					{/if}
+				{/each}
+			</div>
+			<div class="modal-footer">
+				<button class="modal-add-btn" onclick={submitToShoppingList}>Hinzufügen</button>
+				<button class="modal-cancel" onclick={() => ingredientModalOpen = false}>Abbrechen</button>
+			</div>
+		</div>
+	</div>
+{/if}
 
 <style>
 	.page {
@@ -341,5 +638,216 @@
 		font-size: 1rem;
 		color: var(--color-text-light);
 		margin: 0;
+	}
+
+	/* Add to list */
+	.list-btn-wrapper {
+		margin-top: 20px;
+		padding: 0 16px 16px;
+	}
+
+	.list-btn {
+		width: 100%;
+		background: var(--color-primary);
+		color: white;
+		border: none;
+		border-radius: 14px;
+		padding: 16px;
+		font-size: 1.0625rem;
+		font-weight: 700;
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 10px;
+		box-shadow: 0 8px 30px rgba(45, 125, 70, 0.3);
+	}
+
+	/* Added confirmation */
+	.added-confirmation {
+		position: fixed;
+		inset: 0;
+		background: rgba(255, 255, 255, 0.95);
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		z-index: 200;
+		pointer-events: none;
+	}
+
+	.added-circle {
+		width: 72px;
+		height: 72px;
+		border-radius: 50%;
+		background: var(--color-primary);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.added-text {
+		font-size: 1rem;
+		font-weight: 600;
+		color: var(--color-text);
+		margin: 12px 0 0;
+	}
+
+	/* Modals */
+	.modal-backdrop {
+		position: fixed;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.4);
+		z-index: 60;
+		display: flex;
+		align-items: flex-end;
+		justify-content: center;
+	}
+
+	.modal-sheet {
+		background: white;
+		border-radius: 20px 20px 0 0;
+		width: 100%;
+		max-width: 390px;
+		max-height: 80dvh;
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
+	}
+
+	.modal-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 20px 20px 8px;
+		flex-shrink: 0;
+	}
+
+	.modal-title {
+		font-size: 1.0625rem;
+		font-weight: 700;
+		color: var(--color-text);
+	}
+
+	.modal-close {
+		width: 32px;
+		height: 32px;
+		border: none;
+		background: transparent;
+		color: var(--color-text-light);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+		border-radius: 50%;
+		padding: 0;
+	}
+
+	.modal-subtitle {
+		font-size: 0.8125rem;
+		color: var(--color-text-light);
+		line-height: 1.5;
+		margin: 0 0 12px;
+		padding: 0 20px;
+		flex-shrink: 0;
+	}
+
+	.modal-list {
+		overflow-y: auto;
+		flex: 1;
+		padding: 0 20px;
+	}
+
+	.modal-item {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		padding: 12px 0;
+		border-bottom: 1px solid var(--color-border);
+		cursor: pointer;
+	}
+
+	.modal-item:last-child {
+		border-bottom: none;
+	}
+
+	.modal-checkbox {
+		width: 20px;
+		height: 20px;
+		accent-color: var(--color-primary);
+		cursor: pointer;
+		flex-shrink: 0;
+	}
+
+	.modal-item-name {
+		flex: 1;
+		font-size: 0.9375rem;
+		color: var(--color-text);
+	}
+
+	.modal-item-amount {
+		font-size: 0.875rem;
+		color: var(--color-primary);
+		font-weight: 600;
+	}
+
+	.modal-footer {
+		padding: 16px 20px 88px;
+		flex-shrink: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	.modal-add-btn {
+		width: 100%;
+		background: var(--color-primary);
+		color: white;
+		border: none;
+		border-radius: 14px;
+		padding: 14px;
+		font-size: 1rem;
+		font-weight: 700;
+		cursor: pointer;
+	}
+
+	.modal-cancel {
+		background: none;
+		border: none;
+		color: var(--color-text-light);
+		font-size: 0.9375rem;
+		cursor: pointer;
+		padding: 4px;
+		text-align: center;
+	}
+
+	.supermarket-list {
+		display: flex;
+		flex-direction: column;
+		padding: 0 20px;
+		gap: 8px;
+	}
+
+	.supermarket-btn {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		width: 100%;
+		padding: 16px;
+		border: 1.5px solid var(--color-border);
+		border-radius: 14px;
+		background: white;
+		cursor: pointer;
+		font-size: 1rem;
+		color: var(--color-text);
+	}
+
+	.supermarket-btn:hover {
+		border-color: var(--color-primary);
+		background: #F0FBF4;
+	}
+
+	.supermarket-name {
+		font-weight: 600;
 	}
 </style>
