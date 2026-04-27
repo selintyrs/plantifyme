@@ -23,6 +23,7 @@
 	let addedToListVisible = $state(false);
 	let supermarketModalOpen = $state(false);
 	let selectedIngredients = $state([]);
+	let saveConfirmModalOpen = $state(false);
 
 	onMount(async () => {
 		try {
@@ -84,6 +85,32 @@
 		toastMessage = message;
 		toastVisible = true;
 		setTimeout(() => { toastVisible = false; }, 2500);
+	}
+
+	function handleBack() {
+		if (isSaved) {
+			goto('/rezepte');
+		} else {
+			saveConfirmModalOpen = true;
+		}
+	}
+
+	async function saveAndGoBack() {
+		try {
+			const res = await authFetch(`/api/saved-recipes/${recipeId}/save`, { method: 'POST' });
+			if (res.ok) {
+				isSaved = true;
+			}
+		} catch (e) {
+			console.error('Speichern fehlgeschlagen:', e);
+		}
+		saveConfirmModalOpen = false;
+		goto('/rezepte');
+	}
+
+	function discardAndGoBack() {
+		saveConfirmModalOpen = false;
+		goto('/rezepte');
 	}
 
 	function openIngredientModal() {
@@ -320,6 +347,24 @@
 	</div>
 {/if}
 
+<!-- Save-Confirmation Modal -->
+{#if saveConfirmModalOpen}
+	<div class="confirm-backdrop" onclick={() => saveConfirmModalOpen = false} role="presentation">
+		<div class="confirm-dialog" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="dialog" aria-modal="true" tabindex="-1">
+			<h3 class="confirm-title">Rezept speichern?</h3>
+			<p class="confirm-text">
+				Möchtest du das Rezept speichern, bevor du zurückgehst?
+				Ungespeicherte Rezepte werden nach 7 Tagen automatisch gelöscht.
+			</p>
+			<div class="confirm-actions">
+				<button class="confirm-btn-primary" onclick={saveAndGoBack}>Ja, speichern</button>
+				<button class="confirm-btn-secondary" onclick={discardAndGoBack}>Nein, verwerfen</button>
+				<button class="confirm-btn-cancel" onclick={() => saveConfirmModalOpen = false}>Abbrechen</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
 <!-- Supermarkt-Auswahl Modal -->
 {#if supermarketModalOpen}
 	<div class="modal-backdrop" onclick={() => supermarketModalOpen = false} role="presentation">
@@ -393,7 +438,7 @@
 <div class="page">
 	<!-- Top Bar -->
 	<div class="top-bar">
-		<button class="icon-btn" onclick={() => history.back()} aria-label="Zurück">
+		<button class="icon-btn" onclick={handleBack} aria-label="Zurück">
 			<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
 				<path d="m15 18-6-6 6-6"/>
 			</svg>
@@ -1140,5 +1185,88 @@
 		text-align: center;
 		padding: 32px 16px;
 		margin: 0;
+	}
+
+	/* Save-confirmation dialog (centered) */
+	.confirm-backdrop {
+		position: fixed;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.4);
+		z-index: 60;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 24px;
+	}
+
+	.confirm-dialog {
+		width: 100%;
+		max-width: 340px;
+		background: var(--color-bg);
+		border-radius: 16px;
+		padding: 24px 20px;
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.16);
+	}
+
+	.confirm-title {
+		font-size: 1.125rem;
+		font-weight: 700;
+		color: var(--color-text);
+		margin: 0;
+		text-align: center;
+	}
+
+	.confirm-text {
+		font-size: 0.875rem;
+		color: var(--color-text-light);
+		line-height: 1.5;
+		margin: 0;
+		text-align: center;
+	}
+
+	.confirm-actions {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		margin-top: 8px;
+	}
+
+	.confirm-btn-primary {
+		padding: 12px;
+		border-radius: 12px;
+		background: var(--color-primary);
+		color: #fff;
+		font-size: 0.9375rem;
+		font-weight: 600;
+		border: none;
+		cursor: pointer;
+		transition: background 0.15s ease;
+	}
+
+	.confirm-btn-primary:active {
+		background: var(--color-primary-hover);
+	}
+
+	.confirm-btn-secondary {
+		padding: 12px;
+		border-radius: 12px;
+		background: transparent;
+		color: var(--color-text);
+		font-size: 0.9375rem;
+		font-weight: 500;
+		border: 1.5px solid var(--color-border);
+		cursor: pointer;
+	}
+
+	.confirm-btn-cancel {
+		padding: 8px;
+		background: none;
+		border: none;
+		color: var(--color-text-light);
+		font-size: 0.875rem;
+		cursor: pointer;
 	}
 </style>
