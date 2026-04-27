@@ -90,8 +90,14 @@ export async function logout() {
 	if (!client) return;
 
 	try {
+		const u = get(user);
+		if (u?.sub) {
+			localStorage.removeItem(`plantify_coach_chat_${u.sub}`);
+			localStorage.removeItem(`recentProducts_${u.sub}`);
+		}
 		localStorage.removeItem('plantify_coach_chat');
 		localStorage.removeItem('recentProducts');
+		localStorage.removeItem('plantify_recent_products');
 	} catch {}
 
 	await client.logout({

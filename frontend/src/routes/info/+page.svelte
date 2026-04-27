@@ -1,10 +1,12 @@
 <script>
 	import { goto } from '$app/navigation';
-	import { onMount, tick } from 'svelte';
+	import { tick } from 'svelte';
+	import { get } from 'svelte/store';
 	import { categories } from '$lib/data/infoArticles.js';
 	import { authFetch } from '$lib/api.js';
+	import { user } from '$lib/stores/auth.js';
 
-	const STORAGE_KEY = 'plantify_coach_chat';
+	const LEGACY_STORAGE_KEY = 'plantify_coach_chat';
 	const MAX_STORED = 50;
 	const MAX_API_HISTORY = 10;
 
@@ -14,6 +16,7 @@
 	let isLoading = $state(false);
 	let chatContainerRef = $state(null);
 	let inputRef = $state(null);
+	let chatLoaded = $state(false);
 
 	const suggestedPrompts = [
 		'Wie begegne ich dem Argument, Vegan sei Mangelernährung?',
@@ -21,14 +24,33 @@
 		'Ist der Mensch nicht von Natur aus Fleischfresser?',
 	];
 
-	onMount(() => {
-		const stored = localStorage.getItem(STORAGE_KEY);
-		if (stored) {
-			try {
+	function getStorageKey() {
+		const u = get(user);
+		if (!u?.sub) return null;
+		return `plantify_coach_chat_${u.sub}`;
+	}
+
+	$effect(() => {
+		const u = $user;
+		if (!u?.sub || chatLoaded) return;
+
+		const key = `plantify_coach_chat_${u.sub}`;
+		try {
+			const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
+			const current = localStorage.getItem(key);
+			if (legacy && !current) {
+				localStorage.setItem(key, legacy);
+			}
+			if (legacy) localStorage.removeItem(LEGACY_STORAGE_KEY);
+
+			const stored = localStorage.getItem(key);
+			if (stored) {
 				const parsed = JSON.parse(stored);
 				if (Array.isArray(parsed)) messages = parsed;
-			} catch {}
-		}
+			}
+		} catch {}
+
+		chatLoaded = true;
 	});
 
 	function handleImgError(categoryId) {
@@ -38,8 +60,10 @@
 	function saveMessages() {
 		const toSave = messages.slice(-MAX_STORED);
 		messages = toSave;
+		const key = getStorageKey();
+		if (!key) return;
 		try {
-			localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+			localStorage.setItem(key, JSON.stringify(toSave));
 		} catch {}
 	}
 
@@ -97,8 +121,10 @@
 
 	function clearChat() {
 		messages = [];
+		const key = getStorageKey();
+		if (!key) return;
 		try {
-			localStorage.removeItem(STORAGE_KEY);
+			localStorage.removeItem(key);
 		} catch {}
 	}
 
