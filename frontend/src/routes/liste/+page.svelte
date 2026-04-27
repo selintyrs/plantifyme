@@ -57,6 +57,7 @@
 	let saveListName = $state('');
 	let isSaved = $state(false);
 	let saveToastVisible = $state(false);
+	let saveToastMessage = $state('Liste gespeichert');
 	let newListModalOpen = $state(false);
 	let clearAfterSave = $state(false);
 
@@ -362,7 +363,6 @@ if (matches.length > 0) {
 	async function handleEntryTap(entry) {
 		isSaved = false;
 		if (isAdded(entry)) {
-			savedListId.set(null);
 			const items = $shoppingListStore.filter(
 				(i) => i.frontendDictionaryId === entry.id,
 			);
@@ -433,7 +433,6 @@ if (matches.length > 0) {
 		if (item.quantity === 1) {
 			pendingDeleteId = item.id;
 		} else {
-			savedListId.set(null);
 			isSaved = false;
 			updateQuantity(item.id, -1);
 		}
@@ -446,7 +445,6 @@ if (matches.length > 0) {
 		}
 		pendingDeleteId = null;
 		isSaved = false;
-		savedListId.set(null);
 	}
 
 	function cancelDelete() {
@@ -466,7 +464,6 @@ if (matches.length > 0) {
 		if (item.quantity + delta < 1) {
 			pendingDeleteId = id;
 		} else {
-			savedListId.set(null);
 			isSaved = false;
 			updateQuantity(id, delta);
 		}
@@ -526,9 +523,13 @@ if (matches.length > 0) {
 	}
 
 	async function saveList() {
+		const wasUpdate = $savedListId !== null;
+		const url = wasUpdate ? `/api/shoppinglists/${$savedListId}` : '/api/shoppinglists';
+		const method = wasUpdate ? 'PUT' : 'POST';
+
 		try {
-			const res = await authFetch('/api/shoppinglists', {
-				method: 'POST',
+			const res = await authFetch(url, {
+				method,
 				body: JSON.stringify({
 					name: saveListName,
 					supermarket: $supermarketStore,
@@ -546,6 +547,7 @@ if (matches.length > 0) {
 			itemIdMap.set(map);
 			saveModalOpen = false;
 			isSaved = true;
+			saveToastMessage = wasUpdate ? 'Liste aktualisiert' : 'Liste gespeichert';
 			saveToastVisible = true;
 			setTimeout(() => { saveToastVisible = false; }, 1500);
 			if (clearAfterSave) { clearList(); clearAfterSave = false; }
@@ -873,7 +875,7 @@ if (matches.length > 0) {
 							<path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>
 						{/if}
 					</svg>
-					{isSaved ? 'Gespeichert' : 'Liste speichern'}
+					{isSaved ? 'Gespeichert' : ($savedListId ? 'Aktualisieren' : 'Liste speichern')}
 				</button>
 				<button class="btn-new-list" onclick={() => { newListModalOpen = true; }}>
 					<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -1453,8 +1455,12 @@ if (matches.length > 0) {
 {#if saveModalOpen}
 	<div class="backdrop backdrop-blur" onclick={() => { saveModalOpen = false; }} role="presentation"></div>
 	<div class="supermarket-dialog" role="dialog" aria-modal="true">
-		<h2 class="sm-title">Liste speichern</h2>
-		<p class="sm-sub">Gib deiner Einkaufsliste einen Namen, um sie später wiederzufinden.</p>
+		<h2 class="sm-title">{$savedListId ? 'Liste aktualisieren' : 'Liste speichern'}</h2>
+		<p class="sm-sub">
+			{$savedListId
+				? 'Deine Änderungen werden in der bestehenden Liste gespeichert.'
+				: 'Gib deiner Einkaufsliste einen Namen, um sie später wiederzufinden.'}
+		</p>
 		<input
 			type="text"
 			class="save-name-input"
@@ -1463,7 +1469,7 @@ if (matches.length > 0) {
 		/>
 		<div class="save-modal-actions">
 			<button class="btn-save-cancel" onclick={() => { saveModalOpen = false; }}>Abbrechen</button>
-			<button class="btn-primary save-modal-confirm" onclick={saveList}>Speichern</button>
+			<button class="btn-primary save-modal-confirm" onclick={saveList}>{$savedListId ? 'Aktualisieren' : 'Speichern'}</button>
 		</div>
 	</div>
 {/if}
@@ -1474,7 +1480,7 @@ if (matches.length > 0) {
 		<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
 			<polyline points="20 6 9 17 4 12"/>
 		</svg>
-		Liste gespeichert
+		{saveToastMessage}
 	</div>
 {/if}
 
