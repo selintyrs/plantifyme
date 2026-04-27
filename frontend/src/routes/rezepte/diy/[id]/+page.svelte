@@ -310,6 +310,9 @@
 			<button class="tab" class:tab-active={activeTab === 'zubereitung'} onclick={() => activeTab = 'zubereitung'}>
 				Zubereitung
 			</button>
+			<button class="tab" class:tab-active={activeTab === 'naehrwerte'} onclick={() => activeTab = 'naehrwerte'}>
+				Nährwerte
+			</button>
 		</div>
 
 		<!-- Tab: Zutaten -->
@@ -344,6 +347,49 @@
 					</div>
 				{/each}
 			</div>
+		{/if}
+
+		<!-- Tab: Nährwerte -->
+		{#if activeTab === 'naehrwerte'}
+			<h2 class="nutrition-heading">Nährwerte pro 100 g</h2>
+			{#if recipe.nutritionPer100g}
+				{@const n = recipe.nutritionPer100g}
+				<table class="nutrition-table">
+					<tbody>
+						<tr class="nutrition-row">
+							<td class="nutrition-label">Energie</td>
+							<td class="nutrition-value">{n.kcal} kcal</td>
+						</tr>
+						<tr class="nutrition-row nutrition-row-alt">
+							<td class="nutrition-label">Fett</td>
+							<td class="nutrition-value">{n.fat} g</td>
+						</tr>
+						<tr class="nutrition-row">
+							<td class="nutrition-label">davon gesättigte Fettsäuren</td>
+							<td class="nutrition-value">{n.saturatedFat} g</td>
+						</tr>
+						<tr class="nutrition-row nutrition-row-alt">
+							<td class="nutrition-label">Kohlenhydrate</td>
+							<td class="nutrition-value">{n.carbs} g</td>
+						</tr>
+						<tr class="nutrition-row">
+							<td class="nutrition-label">davon Zucker</td>
+							<td class="nutrition-value">{n.sugar} g</td>
+						</tr>
+						<tr class="nutrition-row nutrition-row-alt">
+							<td class="nutrition-label">Protein</td>
+							<td class="nutrition-value">{n.protein} g</td>
+						</tr>
+						<tr class="nutrition-row">
+							<td class="nutrition-label">Salz</td>
+							<td class="nutrition-value">{n.salt} g</td>
+						</tr>
+					</tbody>
+				</table>
+				<p class="nutrition-hint">Geschätzte Werte basierend auf den Zutaten</p>
+			{:else}
+				<p class="nutrition-empty">Keine Nährwerte verfügbar</p>
+			{/if}
 		{/if}
 	{/if}
 </div>
@@ -849,5 +895,59 @@
 
 	.supermarket-name {
 		font-weight: 600;
+	}
+
+	/* Nutrition */
+	.nutrition-heading {
+		font-size: 1.125rem;
+		font-weight: 700;
+		color: var(--color-text);
+		padding: 16px;
+		margin: 0;
+	}
+
+	.nutrition-table {
+		width: 100%;
+		border-collapse: collapse;
+		margin-bottom: 12px;
+	}
+
+	.nutrition-row {
+		background: var(--color-bg);
+	}
+
+	.nutrition-row-alt {
+		background: #F9FAFB;
+	}
+
+	.nutrition-label {
+		padding: 12px 16px;
+		font-size: 0.9375rem;
+		color: var(--color-text);
+	}
+
+	.nutrition-value {
+		padding: 12px 16px;
+		font-size: 0.9375rem;
+		font-weight: 600;
+		color: var(--color-text);
+		text-align: right;
+		white-space: nowrap;
+	}
+
+	.nutrition-hint {
+		font-size: 0.75rem;
+		color: var(--color-text-light);
+		text-align: center;
+		padding: 4px 16px 16px;
+		margin: 0;
+	}
+
+	.nutrition-empty {
+		font-size: 0.9375rem;
+		color: var(--color-text-light);
+		text-align: center;
+		padding: 24px 16px;
+		margin: 0;
 	}
 </style>

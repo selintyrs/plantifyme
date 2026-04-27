@@ -1,5 +1,6 @@
 package ch.zhaw.plantifyme.model;
 
+import ch.zhaw.plantifyme.model.dto.NutritionDto;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -20,4 +21,5 @@ public class DiyRecipeDto {
     private List<MatchingKey> matchingKeys;
     private List<DiyIngredient> ingredients;
     private List<DiyStep> instructions;
+    private NutritionDto nutritionPer100g;
 }
