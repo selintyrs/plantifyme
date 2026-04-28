@@ -109,14 +109,17 @@ public class RecipeGenerationService {
     private final ChatClient chatClient;
     private final BaseRecipeRepository baseRecipeRepository;
     private final SavedRecipeRepository savedRecipeRepository;
+    private final RecipeImageResolver imageResolver;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public RecipeGenerationService(ChatClient.Builder chatClientBuilder,
                                    BaseRecipeRepository baseRecipeRepository,
-                                   SavedRecipeRepository savedRecipeRepository) {
+                                   SavedRecipeRepository savedRecipeRepository,
+                                   RecipeImageResolver imageResolver) {
         this.chatClient = chatClientBuilder.build();
         this.baseRecipeRepository = baseRecipeRepository;
         this.savedRecipeRepository = savedRecipeRepository;
+        this.imageResolver = imageResolver;
     }
 
     public SavedRecipe generateRecipe(RecipeGenerationRequest request) throws Exception {
@@ -218,6 +221,7 @@ public class RecipeGenerationService {
         recipe.setServings(json.path("servings").asInt(2));
         recipe.setPreferences(request.getPreferences());
         recipe.setBaseRecipeId(request.getBaseRecipeId());
+        recipe.setImageUrl(imageResolver.resolveImage(recipe.getTitle(), request.getBaseRecipeId(), recipe.getCategory()));
         recipe.setCreatedAt(new Date());
 
         Calendar cal = Calendar.getInstance();

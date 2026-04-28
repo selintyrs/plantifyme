@@ -9,7 +9,10 @@
 		'pasta-pizza': 'Pasta & Pizza',
 		'asiatische-kueche': 'Asiatische Küche',
 		'fruehstueck-brunch': 'Frühstück & Brunch',
-		'comfort-food': 'Comfort Food'
+		'comfort-food': 'Comfort Food',
+		'bowls-salate': 'Bowls & Salate',
+		'suppen-eintoepfe': 'Suppen & Eintöpfe',
+		'suesses-desserts': 'Süsses & Desserts'
 	};
 
 	let categoryId = $page.params.categoryId;

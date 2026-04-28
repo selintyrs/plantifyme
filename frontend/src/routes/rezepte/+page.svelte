@@ -29,7 +29,16 @@
 	});
 
 	let categories = $derived.by(() => {
-		const order = ['Schweizer Küche', 'Pasta & Pizza', 'Asiatische Küche', 'Frühstück & Brunch', 'Comfort Food'];
+		const order = [
+			'Schweizer Küche',
+			'Pasta & Pizza',
+			'Asiatische Küche',
+			'Frühstück & Brunch',
+			'Comfort Food',
+			'Bowls & Salate',
+			'Suppen & Eintöpfe',
+			'Süsses & Desserts'
+		];
 		return order
 			.map(cat => ({ name: cat, recipes: baseRecipes.filter(r => r.category === cat) }))
 			.filter(cat => cat.recipes.length > 0);
@@ -41,7 +50,10 @@
 			'Pasta & Pizza': 'pasta-pizza',
 			'Asiatische Küche': 'asiatische-kueche',
 			'Frühstück & Brunch': 'fruehstueck-brunch',
-			'Comfort Food': 'comfort-food'
+			'Comfort Food': 'comfort-food',
+			'Bowls & Salate': 'bowls-salate',
+			'Suppen & Eintöpfe': 'suppen-eintoepfe',
+			'Süsses & Desserts': 'suesses-desserts'
 		};
 		return map[name] || name.toLowerCase().replace(/\s+/g, '-');
 	}
