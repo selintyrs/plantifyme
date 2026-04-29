@@ -1,6 +1,7 @@
 <script>
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import { get } from 'svelte/store';
 	import {
 		matchResults,
 		isVeganized,
@@ -9,6 +10,7 @@
 		resetForLoad,
 	} from '$lib/stores/shoppingList.js';
 	import { supermarketStore } from '$lib/stores/supermarket.js';
+	import { dictionaryStore } from '$lib/stores/dictionary.js';
 	import { authFetch } from '$lib/api.js';
 
 	let lists = $state([]);
@@ -24,6 +26,7 @@
 	let prodImgErrors = $state({});
 
 	let savedRecipes = $state([]);
+	let pendingDeleteRecipeId = $state(null);
 	let recipesLoaded = $state(false);
 
 	const tabs = [
@@ -107,45 +110,53 @@
 		}
 	}
 
+	async function confirmDeleteRecipe(id) {
+		try {
+			const res = await authFetch(`/api/saved-recipes/${id}`, {
+				method: 'DELETE',
+			});
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			savedRecipes = savedRecipes.filter((r) => r.id !== id);
+		} catch (e) {
+			console.error('Rezept löschen fehlgeschlagen:', e);
+		} finally {
+			pendingDeleteRecipeId = null;
+		}
+	}
+
 	function loadListIntoStore(list) {
 		const items = list.items || [];
+		const dictionary = get(dictionaryStore) ?? [];
 
-		const storeItems = items.map((item, index) => ({
-			id: index + 1,
-			displayName: item.displayName || item.name,
-			type: item.type,
-			subcategory: item.subcategory || '',
-			quantity: item.quantity,
-			frontendDictionaryId: null,
-			uiCategory: 'Sonstiges',
-		}));
+		const storeItems = items.map((item, index) => {
+			const displayName = item.displayName || item.name;
+			const dictEntry = dictionary.find(
+				(e) => e.displayName === displayName && e.type === item.type
+			);
+			return {
+				id: index + 1,
+				displayName,
+				type: item.type,
+				subcategory: item.subcategory || '',
+				quantity: item.quantity,
+				frontendDictionaryId: dictEntry?.id ?? null,
+				uiCategory: dictEntry?.uiCategory ?? 'Sonstiges',
+			};
+		});
 
-		const matches = items.map((item, index) => ({
-			itemId: (index + 1).toString(),
-			type: item.type,
-			displayName: item.displayName || item.name,
-			uiCategory: 'Sonstiges',
-			suggestedProduct: item.type !== 'C' && item.productId
-				? { id: item.productId, name: item.name, price: item.price }
-				: null,
-			genericFood: item.type === 'C' && item.genericFoodId
-				? { id: item.genericFoodId }
-				: null,
-		}));
-
-		const map = {};
+		const idMap = {};
 		items.forEach((item, index) => {
-			map[(index + 1).toString()] = item.itemId;
+			idMap[(index + 1).toString()] = item.itemId;
 		});
 
 		resetForLoad(storeItems);
-		matchResults.set(matches);
-		isVeganized.set(true);
+		matchResults.set([]);
+		isVeganized.set(false);
 		supermarketStore.set(list.supermarket);
 		savedListId.set(list.id);
-		itemIdMap.set(map);
+		itemIdMap.set(idMap);
 
-		goto('/liste');
+		goto('/liste?reload=1');
 	}
 
 	function formatDate(dateStr) {
@@ -343,7 +354,13 @@
 		{:else}
 			<div class="recipe-cards">
 				{#each savedRecipes as recipe (recipe.id)}
-					<button class="recipe-card" onclick={() => goto('/rezepte/' + recipe.id)}>
+					<div
+						class="recipe-card"
+						role="button"
+						tabindex="0"
+						onclick={() => { if (pendingDeleteRecipeId !== recipe.id) goto('/rezepte/' + recipe.id); }}
+						onkeydown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && pendingDeleteRecipeId !== recipe.id) goto('/rezepte/' + recipe.id); }}
+					>
 						{#if recipe.imageUrl}
 							<img src={recipe.imageUrl} alt={recipe.title} class="recipe-card-img" />
 						{:else}
@@ -355,7 +372,24 @@
 								<span class="recipe-card-time">{recipe.prepTimeMin} Min</span>
 							{/if}
 						</div>
-					</button>
+						{#if pendingDeleteRecipeId === recipe.id}
+							<div class="delete-confirm" role="presentation" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
+								<span class="delete-label">Löschen?</span>
+								<button class="btn-confirm" onclick={() => confirmDeleteRecipe(recipe.id)}>Ja</button>
+								<button class="btn-cancel" onclick={() => { pendingDeleteRecipeId = null; }}>Nein</button>
+							</div>
+						{:else}
+							<button class="trash-btn" aria-label="Rezept entfernen"
+								onclick={(e) => { e.stopPropagation(); pendingDeleteRecipeId = recipe.id; }}>
+								<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<polyline points="3 6 5 6 21 6"/>
+									<path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+									<path d="M10 11v6"/><path d="M14 11v6"/>
+									<path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+								</svg>
+							</button>
+						{/if}
+					</div>
 				{/each}
 			</div>
 		{/if}

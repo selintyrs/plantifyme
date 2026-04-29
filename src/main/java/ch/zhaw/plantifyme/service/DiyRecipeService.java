@@ -5,6 +5,7 @@ import ch.zhaw.plantifyme.model.DiyRecipe;
 import ch.zhaw.plantifyme.model.DiyRecipeDto;
 import ch.zhaw.plantifyme.model.GenericFood;
 import ch.zhaw.plantifyme.model.SupermarketProduct;
+import ch.zhaw.plantifyme.model.dto.DiyRecipeListItemDto;
 import ch.zhaw.plantifyme.model.dto.NutritionDto;
 import ch.zhaw.plantifyme.repository.DiyRecipeRepository;
 import ch.zhaw.plantifyme.repository.GenericFoodRepository;
@@ -35,6 +36,18 @@ public class DiyRecipeService {
         return diyRecipeRepository.findAll()
                 .stream()
                 .map(this::toDto)
+                .toList();
+    }
+
+    public List<DiyRecipeListItemDto> findAllSlim() {
+        return diyRecipeRepository.findAll().stream()
+                .map(r -> new DiyRecipeListItemDto(
+                        r.getId(),
+                        r.getTitle(),
+                        r.getImageUrl(),
+                        r.getPrepTimeMin(),
+                        r.getDifficulty()
+                ))
                 .toList();
     }
 

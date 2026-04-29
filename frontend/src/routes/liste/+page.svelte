@@ -3,6 +3,7 @@
 		dictionaryStore,
 		searchDictionary,
 		groupByCategory,
+		loadDictionary,
 	} from "$lib/stores/dictionary.js";
 	import {
 		shoppingListStore,
@@ -18,6 +19,7 @@
 	import { supermarketStore } from "$lib/stores/supermarket.js";
 	import { recentProducts, addRecentProduct } from "$lib/stores/recentProducts.js";
 	import { goto } from "$app/navigation";
+	import { onMount } from "svelte";
 	import { authFetch } from "$lib/api.js";
 	import { currentUser } from "$lib/stores/user.js";
 
@@ -56,6 +58,10 @@
 	let saveModalOpen = $state(false);
 	let saveListName = $state('');
 	let isSaved = $state(false);
+	let currentListName = $state('');
+	let listNameEditing = $state(false);
+	let listNameDraft = $state('');
+	let pendingListDelete = $state(false);
 	let saveToastVisible = $state(false);
 	let saveToastMessage = $state('Liste gespeichert');
 	let newListModalOpen = $state(false);
@@ -196,6 +202,26 @@
 			frontendDictionaryId: item.frontendDictionaryId,
 		}));
 	}
+
+	onMount(() => {
+		const params = new URLSearchParams(window.location.search);
+		if (params.get('reload') === '1' && $shoppingListStore.length > 0) {
+			plantifyMatch();
+			window.history.replaceState({}, '', window.location.pathname);
+		}
+	});
+
+	$effect(() => {
+		const id = $savedListId;
+		if (id && !currentListName) {
+			authFetch(`/api/shoppinglists/${id}`)
+				.then(r => r.ok ? r.json() : null)
+				.then(data => { if (data?.name) currentListName = data.name; })
+				.catch(() => {});
+		} else if (!id) {
+			currentListName = '';
+		}
+	});
 
 	async function plantifyMatch() {
 		isLoading = true;
@@ -347,11 +373,14 @@ if (matches.length > 0) {
 	}
 
 	// ── Add-Product Modal ─────────────────────────────────────────────────────
-	function openModal() {
+	async function openModal() {
 		modalOpen = true;
 		query = "";
 		modalTab = 'kategorien';
 		selectedCategory = null;
+		if ($dictionaryStore.length === 0) {
+			await loadDictionary();
+		}
 	}
 
 	function closeModal() {
@@ -474,23 +503,79 @@ if (matches.length > 0) {
 		node.focus();
 	}
 
-	async function clearList() {
-		try {
-			const res = await authFetch('/api/shoppinglists');
-			if (res.ok) {
-				const lists = await res.json();
-				for (const list of lists) {
-					await authFetch(`/api/shoppinglists/${list.id}`, {
-						method: 'DELETE',
-						headers: { }
-					});
-				}
-			}
-		} catch (e) {
-			console.error('Listen löschen fehlgeschlagen:', e);
-		}
+	function clearList() {
+		// Nur den lokalen Store leeren. DB-Listen bleiben unverändert —
+		// der User hat sie ja absichtlich gespeichert.
 		resetAll();
 		isSaved = false;
+		currentListName = '';
+	}
+
+	function startEditName() {
+		listNameDraft = currentListName;
+		listNameEditing = true;
+	}
+
+	function cancelEditName() {
+		listNameEditing = false;
+		listNameDraft = '';
+	}
+
+	async function commitListName() {
+		const newName = listNameDraft.trim();
+		if (!newName || newName === currentListName) {
+			listNameEditing = false;
+			return;
+		}
+
+		if ($savedListId) {
+			try {
+				const res = await authFetch(`/api/shoppinglists/${$savedListId}`, {
+					method: 'PUT',
+					body: JSON.stringify({
+						name: newName,
+						supermarket: $supermarketStore,
+						items: buildSaveItems(),
+					}),
+				});
+				if (res.ok) {
+					currentListName = newName;
+					isSaved = true;
+					saveToastMessage = 'Name aktualisiert';
+					saveToastVisible = true;
+					setTimeout(() => { saveToastVisible = false; }, 1500);
+				}
+			} catch (e) {
+				console.error('Name speichern fehlgeschlagen:', e);
+			}
+		}
+		listNameEditing = false;
+	}
+
+	async function confirmListDelete() {
+		if (!$savedListId) return;
+		try {
+			const res = await authFetch(`/api/shoppinglists/${$savedListId}`, {
+				method: 'DELETE',
+			});
+			if (res.ok) {
+				resetAll();
+				currentListName = '';
+				pendingListDelete = false;
+				isSaved = false;
+			}
+		} catch (e) {
+			console.error('Liste löschen fehlgeschlagen:', e);
+		}
+	}
+
+	async function handleSaveClick() {
+		if ($savedListId) {
+			saveListName = currentListName;
+			await saveList();
+		} else {
+			openSaveModal();
+		}
 	}
 
 	function openSaveModal() {
@@ -539,6 +624,7 @@ if (matches.length > 0) {
 			if (!res.ok) throw new Error(`HTTP ${res.status}`);
 			const saved = await res.json();
 			savedListId.set(saved.id);
+			currentListName = saved.name ?? saveListName;
 			const map = {};
 			for (const backendItem of (saved.items || [])) {
 				const localMatch = $matchResults.find(r => r.displayName === backendItem.displayName);
@@ -571,6 +657,32 @@ if (matches.length > 0) {
 		<div class="header">
 			<div class="header-titles">
 				<h1>Einkaufsliste</h1>
+				{#if $savedListId && currentListName}
+					<div class="list-name-row">
+						{#if listNameEditing}
+							<input
+								class="list-name-input"
+								type="text"
+								bind:value={listNameDraft}
+								onkeydown={(e) => { if (e.key === 'Enter') commitListName(); if (e.key === 'Escape') cancelEditName(); }}
+								use:focusOnMount
+							/>
+							<button class="name-action-btn" onclick={commitListName} aria-label="Namen speichern">
+								<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+									<polyline points="20 6 9 17 4 12"/>
+								</svg>
+							</button>
+						{:else}
+							<span class="list-name">{currentListName}</span>
+							<button class="name-action-btn" onclick={startEditName} aria-label="Namen bearbeiten">
+								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<path d="M12 20h9"/>
+									<path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+								</svg>
+							</button>
+						{/if}
+					</div>
+				{/if}
 				{#if $isVeganized}
 					<div class="supermarket-badge-row">
 						<span class="supermarket-badge">{$supermarketStore}</span>
@@ -578,23 +690,31 @@ if (matches.length > 0) {
 					</div>
 				{/if}
 			</div>
-			<button class="icon-btn" aria-label="Gespeicherte Listen" onclick={() => goto('/shoppinglists')}>
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					width="24"
-					height="24"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<path
-						d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"
-					/>
-				</svg>
-			</button>
+			<div class="header-actions">
+				{#if $savedListId}
+					{#if pendingListDelete}
+						<div class="delete-confirm">
+							<span class="delete-label">Löschen?</span>
+							<button class="btn-confirm" onclick={confirmListDelete}>Ja</button>
+							<button class="btn-cancel" onclick={() => pendingListDelete = false}>Nein</button>
+						</div>
+					{:else}
+						<button class="icon-btn icon-btn-trash" aria-label="Liste löschen" onclick={() => pendingListDelete = true}>
+							<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<polyline points="3 6 5 6 21 6"/>
+								<path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+								<path d="M10 11v6"/><path d="M14 11v6"/>
+								<path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+							</svg>
+						</button>
+					{/if}
+				{/if}
+				<button class="icon-btn" aria-label="Gespeicherte Listen" onclick={() => goto('/shoppinglists')}>
+					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>
+					</svg>
+				</button>
+			</div>
 		</div>
 
 		<!-- Empty state -->
@@ -627,6 +747,14 @@ if (matches.length > 0) {
 					Füge Produkte hinzu oder wähle eine deiner gespeicherten
 					Listen.
 				</p>
+				<div class="empty-tip">
+					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<circle cx="12" cy="12" r="10"/>
+						<path d="M12 16v-4"/>
+						<path d="M12 8h.01"/>
+					</svg>
+					<span>Tipp: Drücke lange auf ein Produkt, um z.B. die Sorte zu spezifizieren.</span>
+				</div>
 			</div>
 
 			<!-- ── Veganized View ─────────────────────────────────────────────────── -->
@@ -685,7 +813,9 @@ if (matches.length > 0) {
 												<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 													<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/>
 												</svg>
-												Selbst machen: {result.fallbackDiyRecipeTitle}
+												{result.displayName === 'Eier'
+													? 'Plantfied Eier'
+													: `Selbst machen: ${result.fallbackDiyRecipeTitle}`}
 											</span>
 										{:else}
 											<span class="item-name"
@@ -804,6 +934,7 @@ if (matches.length > 0) {
 												>
 											</button>
 										</div>
+										{#if result.displayName === 'Eier' || result.fallbackDiyRecipeId || result.suggestedProduct || result.genericFood}
 										<button
 											class="chevron-btn"
 											aria-label="Details"
@@ -842,6 +973,7 @@ if (matches.length > 0) {
 													/></svg
 												>
 											</button>
+										{/if}
 								{/if}
 								</div>
 							</div>
@@ -855,7 +987,7 @@ if (matches.length > 0) {
 				<button
 					class="btn-save"
 					class:btn-save-done={isSaved}
-					onclick={isSaved ? null : openSaveModal}
+					onclick={isSaved ? null : handleSaveClick}
 					disabled={isSaved}
 				>
 					<svg
@@ -921,28 +1053,28 @@ if (matches.length > 0) {
 							<div class="animal-col">
 								<img src="/images/icons/cow.png" alt="Kuh" width="44" height="44" />
 								<span class="animal-count">{impactData.animals.cow}</span>
-								<span class="animal-label">Kühe</span>
+								<span class="animal-label">{impactData.animals.cow === 1 ? 'Kuh' : 'Kühe'}</span>
 							</div>
 						{/if}
 						{#if impactData.animals.pig > 0}
 							<div class="animal-col">
 								<img src="/images/icons/pig.png" alt="Schwein" width="44" height="44" />
 								<span class="animal-count">{impactData.animals.pig}</span>
-								<span class="animal-label">Schweine</span>
+								<span class="animal-label">{impactData.animals.pig === 1 ? 'Schwein' : 'Schweine'}</span>
 							</div>
 						{/if}
 						{#if impactData.animals.chicken > 0}
 							<div class="animal-col">
 								<img src="/images/icons/chicken.png" alt="Huhn" width="44" height="44" />
 								<span class="animal-count">{impactData.animals.chicken}</span>
-								<span class="animal-label">Hühner</span>
+								<span class="animal-label">{impactData.animals.chicken === 1 ? 'Huhn' : 'Hühner'}</span>
 							</div>
 						{/if}
 						{#if impactData.animals.fish > 0}
 							<div class="animal-col">
 								<img src="/images/icons/fish.png" alt="Fisch" width="44" height="44" />
 								<span class="animal-count">{impactData.animals.fish}</span>
-								<span class="animal-label">Fische</span>
+								<span class="animal-label">{impactData.animals.fish === 1 ? 'Fisch' : 'Fische'}</span>
 							</div>
 						{/if}
 					</div>
@@ -1207,6 +1339,7 @@ if (matches.length > 0) {
 
 		{#snippet entryItem(entry)}
 			{@const added = isAdded(entry)}
+			{@const hasOptions = entry.additionalOptions && entry.additionalOptions.length > 0}
 			<button
 				class="entry-row"
 				class:entry-added={added}
@@ -1217,7 +1350,12 @@ if (matches.length > 0) {
 				ontouchstart={() => startLongPress(entry)}
 				ontouchend={cancelLongPress}
 			>
-				<span class="entry-name">{entry.displayName}</span>
+				<div class="entry-info">
+					<span class="entry-name">{entry.displayName}</span>
+					{#if hasOptions}
+						<span class="entry-options-hint">optional spezifizieren</span>
+					{/if}
+				</div>
 				<span class="entry-action">
 					{#if added}
 						<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -1252,9 +1390,22 @@ if (matches.length > 0) {
 						<span class="breadcrumb-sep">›</span>
 						<span class="breadcrumb-current">{selectedCategory === 'Milchprodukte & Käse' ? 'Milchprodukte & Eier' : selectedCategory}</span>
 					</div>
-					{#each $dictionaryStore.filter(e => e.uiCategory === selectedCategory).sort((a, b) => a.displayName.localeCompare(b.displayName, 'de')) as entry, i (i)}
-						{@render entryItem(entry)}
-					{/each}
+					{#if $dictionaryStore.length === 0}
+						<div class="empty-tab">
+							<p class="empty-tab-text">Lade Produkte…</p>
+						</div>
+					{:else}
+						{@const filtered = $dictionaryStore.filter(e => e.uiCategory === selectedCategory).sort((a, b) => a.displayName.localeCompare(b.displayName, 'de'))}
+						{#if filtered.length === 0}
+							<div class="empty-tab">
+								<p class="empty-tab-text">Keine Produkte in dieser Kategorie</p>
+							</div>
+						{:else}
+							{#each filtered as entry, i (i)}
+								{@render entryItem(entry)}
+							{/each}
+						{/if}
+					{/if}
 				{:else}
 					<div class="cat-grid">
 						<button class="cat-card" onclick={() => selectedCategory = 'Obst & Gemüse'}>
@@ -1542,6 +1693,61 @@ if (matches.length > 0) {
 		color: var(--color-text);
 	}
 
+	.list-name-row {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		margin-top: 2px;
+	}
+
+	.list-name {
+		font-size: 0.875rem;
+		font-weight: 500;
+		color: var(--color-text);
+	}
+
+	.list-name-input {
+		font-size: 0.875rem;
+		font-weight: 500;
+		color: var(--color-text);
+		background: var(--color-bg);
+		border: 1px solid var(--color-primary);
+		border-radius: 6px;
+		padding: 2px 6px;
+		outline: none;
+		font-family: inherit;
+		max-width: 220px;
+	}
+
+	.name-action-btn {
+		background: none;
+		border: none;
+		padding: 2px;
+		color: var(--color-text-light);
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		transition: color 0.12s ease;
+	}
+
+	.name-action-btn:hover {
+		color: var(--color-primary);
+	}
+
+	.header-actions {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+	}
+
+	.icon-btn-trash {
+		color: var(--color-text-light);
+	}
+
+	.icon-btn-trash:active {
+		color: #ef4444;
+	}
+
 	.supermarket-badge-row {
 		display: flex;
 		align-items: center;
@@ -1599,6 +1805,40 @@ if (matches.length > 0) {
 		color: var(--color-text-light);
 		line-height: 1.5;
 		max-width: 260px;
+	}
+
+	.empty-tip {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		margin-top: 16px;
+		padding: 8px 14px;
+		background: var(--color-primary-light);
+		border-radius: 12px;
+		font-size: 0.75rem;
+		color: var(--color-primary);
+		line-height: 1.4;
+		text-align: left;
+		max-width: 300px;
+	}
+
+	.empty-tip svg {
+		flex-shrink: 0;
+		margin-top: 1px;
+	}
+
+	.entry-info {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		min-width: 0;
+		flex: 1;
+	}
+
+	.entry-options-hint {
+		font-size: 0.6875rem;
+		color: var(--color-text-light);
+		line-height: 1.2;
 	}
 
 	/* ── Item list ────────────────────────────────────────────────────────── */

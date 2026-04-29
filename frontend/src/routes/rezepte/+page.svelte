@@ -14,9 +14,9 @@
 	onMount(async () => {
 		try {
 			const [baseRes, savedRes, diyRes] = await Promise.all([
-				authFetch('/api/base-recipes'),
+				authFetch('/api/base-recipes/slim'),
 				authFetch('/api/saved-recipes'),
-				authFetch('/api/diy-recipes')
+				authFetch('/api/diy-recipes/slim')
 			]);
 			if (baseRes.ok) baseRecipes = await baseRes.json();
 			if (savedRes.ok) savedRecipes = await savedRes.json();
@@ -75,6 +75,11 @@
 		recipeCreationStore.set({ title: '', description: searchQuery, customIngredients: [], baseRecipeId: null });
 		searchActive = false;
 		searchQuery = '';
+		goto('/rezepte/erstellen');
+	}
+
+	function goToCreateFresh() {
+		recipeCreationStore.set({ title: '', description: '', customIngredients: [], baseRecipeId: null });
 		goto('/rezepte/erstellen');
 	}
 
@@ -148,6 +153,23 @@
 		<div class="search-backdrop" role="presentation" onclick={clearSearch}></div>
 	{/if}
 
+	<button class="generate-section" onclick={goToCreateFresh}>
+		<div class="generate-section-content">
+			<div class="generate-section-titles">
+				<div class="generate-section-title-row">
+					<svg class="generate-sparkle" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.582a.5.5 0 0 1 0 .963L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>
+					</svg>
+					<span class="generate-section-title">Generiere dein eigenes Rezept</span>
+				</div>
+				<span class="generate-section-subtitle">Personalisiert auf deine Vorlieben, Allergien und Ziele</span>
+			</div>
+			<svg class="generate-section-arrow" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+				<polyline points="9 18 15 12 9 6"/>
+			</svg>
+		</div>
+	</button>
+
 	{#if isLoading}
 		<div class="spinner-wrapper">
 			<div class="spinner"></div>
@@ -158,14 +180,14 @@
 			<section class="section">
 				<div class="section-header">
 					<span class="section-title">Zuletzt gespeichert</span>
-					<button class="see-all" onclick={() => goto('/rezepte/gespeichert')}>Alle ansehen ›</button>
+					<button class="see-all" onclick={() => goto('/shoppinglists?tab=rezepte')}>Alle ansehen ›</button>
 				</div>
 				<div class="scroll-row">
 					{#each savedRecipes.slice(0, 10) as recipe}
 						<button class="recipe-card" onclick={() => goto('/rezepte/' + recipe.id)}>
 							<div class="card-img-wrapper">
 								{#if recipe.imageUrl}
-									<img src={recipe.imageUrl} alt={recipe.title} class="card-img" />
+									<img src={recipe.imageUrl} alt={recipe.title} class="card-img" loading="lazy" decoding="async" />
 								{:else}
 									<div class="card-img-placeholder">{recipe.title}</div>
 								{/if}
@@ -191,7 +213,7 @@
 					<button class="recipe-card" onclick={() => goto('/rezepte/diy/' + recipe.id)}>
 						<div class="card-img-wrapper">
 							{#if recipe.imageUrl}
-								<img src={recipe.imageUrl} alt={recipe.title} class="card-img" />
+								<img src={recipe.imageUrl} alt={recipe.title} class="card-img" loading="lazy" decoding="async" />
 							{:else}
 								<div class="card-img-diy">
 									<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -222,7 +244,7 @@
 						<button class="recipe-card" onclick={() => goto('/rezepte/anpassen/' + recipe.id)}>
 							<div class="card-img-wrapper">
 								{#if recipe.imageUrl}
-									<img src={recipe.imageUrl} alt={recipe.title} class="card-img" />
+									<img src={recipe.imageUrl} alt={recipe.title} class="card-img" loading="lazy" decoding="async" />
 								{:else}
 									<div class="card-img-placeholder">{recipe.title}</div>
 								{/if}
@@ -392,6 +414,66 @@
 		position: fixed;
 		inset: 0;
 		z-index: 40;
+	}
+
+	/* Generate-Section (minimalistisch, integriert) */
+	.generate-section {
+		display: block;
+		width: 100%;
+		padding: 4px 16px 24px;
+		background: none;
+		border: none;
+		cursor: pointer;
+		text-align: left;
+		color: inherit;
+		font-family: inherit;
+	}
+
+	.generate-section-content {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+	}
+
+	.generate-section-titles {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		min-width: 0;
+	}
+
+	.generate-section-title-row {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	.generate-sparkle {
+		color: var(--color-primary);
+		flex-shrink: 0;
+	}
+
+	.generate-section-title {
+		font-size: 1.125rem;
+		font-weight: 700;
+		color: var(--color-text);
+	}
+
+	.generate-section-subtitle {
+		font-size: 0.8125rem;
+		color: var(--color-text-light);
+		line-height: 1.4;
+	}
+
+	.generate-section-arrow {
+		color: var(--color-primary);
+		flex-shrink: 0;
+		transition: transform 0.15s ease;
+	}
+
+	.generate-section:active .generate-section-arrow {
+		transform: translateX(2px);
 	}
 
 	/* Loading */

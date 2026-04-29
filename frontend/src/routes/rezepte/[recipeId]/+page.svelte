@@ -20,7 +20,16 @@
 
 	let ingredientModalOpen = $state(false);
 	let ingredientCheckedMap = $state({});
-	let addedToListVisible = $state(false);
+	let addToListToastVisible = $state(false);
+	let addToListToastMessage = $state('');
+
+	function showAddedToListToast(count) {
+		addToListToastMessage = count === 1
+			? '1 Zutat zur Liste hinzugefügt'
+			: `${count} Zutaten zur Liste hinzugefügt`;
+		addToListToastVisible = true;
+		setTimeout(() => { addToListToastVisible = false; }, 2500);
+	}
 	let supermarketModalOpen = $state(false);
 	let selectedIngredients = $state([]);
 	let saveConfirmModalOpen = $state(false);
@@ -67,7 +76,15 @@
 
 	async function toggleSaved() {
 		if (isSaved) {
-			showToast('Rezept bereits gespeichert');
+			try {
+				const res = await authFetch(`/api/saved-recipes/${recipeId}`, { method: 'DELETE' });
+				if (res.ok) {
+					isSaved = false;
+					showToast('Aus gespeicherten Rezepten entfernt');
+				}
+			} catch (e) {
+				console.error('Entfernen fehlgeschlagen:', e);
+			}
 		} else {
 			try {
 				const res = await authFetch(`/api/saved-recipes/${recipeId}/save`, { method: 'POST' });
@@ -142,6 +159,8 @@
 
 		if ($savedListId) {
 			await addToExistingList($savedListId);
+		} else if ($supermarketStore) {
+			await createListFromRecipe($supermarketStore);
 		} else {
 			supermarketModalOpen = true;
 		}
@@ -243,8 +262,7 @@
 				});
 				isVeganized.set(true);
 
-				addedToListVisible = true;
-				setTimeout(() => { addedToListVisible = false; goto('/liste'); }, 1500);
+				showAddedToListToast(selectedIngredients.length);
 			} else {
 				showToast('Fehler beim Hinzufügen');
 			}
@@ -256,7 +274,6 @@
 
 	async function createListFromRecipe(supermarket) {
 		supermarketModalOpen = false;
-		addedToListVisible = true;
 
 		const apiSupermarket = supermarket === 'Migros' ? 'Migros' : supermarket.toLowerCase();
 
@@ -310,14 +327,12 @@
 				matchResults.set(newMatches);
 				isVeganized.set(true);
 
-				setTimeout(() => { addedToListVisible = false; goto('/liste'); }, 1500);
+				showAddedToListToast(selectedIngredients.length);
 			} else {
-				addedToListVisible = false;
 				showToast('Fehler beim Erstellen der Liste');
 			}
 		} catch (e) {
 			console.error('Liste erstellen fehlgeschlagen:', e);
-			addedToListVisible = false;
 			showToast('Fehler beim Erstellen der Liste');
 		}
 	}
@@ -335,15 +350,13 @@
 	<div class="toast">{toastMessage}</div>
 {/if}
 
-<!-- Added to list confirmation -->
-{#if addedToListVisible}
-	<div class="added-confirmation">
-		<div class="added-circle">
-			<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-				<polyline points="20 6 9 17 4 12"/>
-			</svg>
-		</div>
-		<p class="added-text">Zur Einkaufsliste hinzugefügt</p>
+<!-- Add-to-list toast -->
+{#if addToListToastVisible}
+	<div class="add-toast">
+		<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+			<polyline points="20 6 9 17 4 12"/>
+		</svg>
+		{addToListToastMessage}
 	</div>
 {/if}
 
@@ -949,34 +962,29 @@
 		white-space: nowrap;
 	}
 
-	/* Added confirmation */
-	.added-confirmation {
+	/* Add-to-list toast */
+	.add-toast {
 		position: fixed;
-		inset: 0;
-		background: rgba(255, 255, 255, 0.95);
+		bottom: calc(72px + 24px);
+		left: 50%;
+		transform: translateX(-50%);
 		display: flex;
-		flex-direction: column;
 		align-items: center;
-		justify-content: center;
-		z-index: 200;
-		pointer-events: none;
-	}
-
-	.added-circle {
-		width: 72px;
-		height: 72px;
-		border-radius: 50%;
+		gap: 8px;
+		padding: 12px 20px;
 		background: var(--color-primary);
-		display: flex;
-		align-items: center;
-		justify-content: center;
+		color: #fff;
+		font-size: 0.9375rem;
+		font-weight: 600;
+		border-radius: 24px;
+		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+		z-index: 100;
+		animation: toastFadeIn 0.2s ease-out;
 	}
 
-	.added-text {
-		font-size: 1rem;
-		font-weight: 600;
-		color: var(--color-text);
-		margin: 12px 0 0;
+	@keyframes toastFadeIn {
+		from { opacity: 0; transform: translate(-50%, 8px); }
+		to { opacity: 1; transform: translate(-50%, 0); }
 	}
 
 	/* Ingredient Modal */

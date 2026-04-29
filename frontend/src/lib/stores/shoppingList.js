@@ -1,12 +1,59 @@
 import { writable, get } from 'svelte/store';
+import { browser } from '$app/environment';
 
-export const shoppingListStore = writable([]);
-export const isVeganized = writable(false);
-export const matchResults = writable([]);
-export const savedListId = writable(null);
-export const itemIdMap = writable({});
+const STORAGE_KEY = 'plantify_shoppinglist_state';
 
-let nextId = 1;
+function loadState() {
+	if (!browser) return null;
+	try {
+		const stored = sessionStorage.getItem(STORAGE_KEY);
+		return stored ? JSON.parse(stored) : null;
+	} catch {
+		return null;
+	}
+}
+
+const initial = loadState();
+
+export const shoppingListStore = writable(initial?.items ?? []);
+export const isVeganized = writable(initial?.isVeganized ?? false);
+export const matchResults = writable(initial?.matchResults ?? []);
+export const savedListId = writable(initial?.savedListId ?? null);
+export const itemIdMap = writable(initial?.itemIdMap ?? {});
+
+let nextId = initial?.nextId ?? 1;
+
+function saveState() {
+	if (!browser) return;
+	try {
+		const state = {
+			items: get(shoppingListStore),
+			isVeganized: get(isVeganized),
+			matchResults: get(matchResults),
+			savedListId: get(savedListId),
+			itemIdMap: get(itemIdMap),
+			nextId,
+			timestamp: Date.now(),
+		};
+		sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+	} catch (e) {
+		console.warn('Failed to persist shopping list state:', e);
+	}
+}
+
+let saveTimeout;
+function debouncedSave() {
+	clearTimeout(saveTimeout);
+	saveTimeout = setTimeout(saveState, 100);
+}
+
+if (browser) {
+	shoppingListStore.subscribe(debouncedSave);
+	isVeganized.subscribe(debouncedSave);
+	matchResults.subscribe(debouncedSave);
+	savedListId.subscribe(debouncedSave);
+	itemIdMap.subscribe(debouncedSave);
+}
 
 export function addItem(entry, subcategory = '') {
 	shoppingListStore.update((items) => {
@@ -61,4 +108,7 @@ export function resetAll() {
 	savedListId.set(null);
 	itemIdMap.set({});
 	nextId = 1;
+	if (browser) {
+		try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
+	}
 }

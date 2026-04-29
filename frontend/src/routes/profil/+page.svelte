@@ -89,11 +89,13 @@
 
 	async function saveChanges() {
 		if (isSaving) return;
+		const trimmedFirstName = editValues.firstName.trim();
+		if (!trimmedFirstName) return;
 		isSaving = true;
 		try {
 			await updateCurrentUser({
-				firstName: editValues.firstName.trim(),
-				lastName: editValues.lastName.trim() || null,
+				firstName: trimmedFirstName,
+				lastName: editValues.lastName.trim(),
 				currentDiet: editValues.currentDiet,
 				goals: editValues.goals,
 				dietaryPreferences: editValues.dietaryPreferences,
@@ -141,7 +143,7 @@
 		<h1 class="top-title">Profil</h1>
 
 		{#if editMode}
-			<button class="icon-btn icon-btn-primary" onclick={saveChanges} disabled={isSaving} aria-label="Speichern">
+			<button class="icon-btn icon-btn-primary" onclick={saveChanges} disabled={isSaving || !editValues.firstName.trim()} aria-label="Speichern">
 				<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
 			</button>
 		{:else}

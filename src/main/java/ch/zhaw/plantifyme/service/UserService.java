@@ -39,7 +39,9 @@ public class UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
-        if (update.getFirstName() != null) user.setFirstName(update.getFirstName());
+        if (update.getFirstName() != null && !update.getFirstName().isBlank()) {
+            user.setFirstName(update.getFirstName());
+        }
         if (update.getLastName() != null) user.setLastName(update.getLastName());
         if (update.getCurrentDiet() != null) user.setCurrentDiet(update.getCurrentDiet());
         if (update.getGoals() != null) user.setGoals(update.getGoals());

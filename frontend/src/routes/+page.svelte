@@ -4,6 +4,8 @@
 	import { infoArticles, categories } from '$lib/data/infoArticles.js';
 	import { authFetch } from '$lib/api.js';
 	import { currentUser } from '$lib/stores/user.js';
+	import { matchResults, savedListId, itemIdMap, isVeganized, resetForLoad } from '$lib/stores/shoppingList.js';
+	import { supermarketStore } from '$lib/stores/supermarket.js';
 
 	let firstName = $derived($currentUser?.firstName ?? '');
 
@@ -167,7 +169,47 @@
 
 	// ── Navigation ────────────────────────────────────────────────────────
 	function openList() {
-		goto('/shoppinglists');
+		const list = latestList;
+		if (!list) {
+			goto('/shoppinglists');
+			return;
+		}
+		const items = list.items || [];
+
+		const storeItems = items.map((item, index) => ({
+			id: index + 1,
+			displayName: item.displayName || item.name,
+			type: item.type,
+			subcategory: item.subcategory || '',
+			quantity: item.quantity,
+			frontendDictionaryId: null,
+			uiCategory: 'Sonstiges',
+		}));
+
+		const matches = items.map((item, index) => ({
+			itemId: (index + 1).toString(),
+			type: item.type,
+			displayName: item.displayName || item.name,
+			uiCategory: 'Sonstiges',
+			suggestedProduct: item.type !== 'C' && item.productId
+				? { id: item.productId, name: item.name, price: item.price }
+				: null,
+			genericFood: item.type === 'C' && item.genericFoodId
+				? { id: item.genericFoodId }
+				: null,
+		}));
+
+		const map = {};
+		items.forEach((item, index) => { map[(index + 1).toString()] = item.itemId; });
+
+		resetForLoad(storeItems);
+		matchResults.set(matches);
+		isVeganized.set(true);
+		supermarketStore.set(list.supermarket);
+		savedListId.set(list.id);
+		itemIdMap.set(map);
+
+		goto('/liste');
 	}
 	function openRecipe(id) {
 		goto('/rezepte/anpassen/' + id);
@@ -342,28 +384,28 @@
 						<div class="animal-col">
 							<img src="/images/icons/cow.png" alt="Kuh" width="44" height="44" />
 							<span class="animal-count">{impactTotal.animals.cow}</span>
-							<span class="animal-label">Kühe</span>
+							<span class="animal-label">{impactTotal.animals.cow === 1 ? 'Kuh' : 'Kühe'}</span>
 						</div>
 					{/if}
 					{#if impactTotal.animals?.pig > 0}
 						<div class="animal-col">
 							<img src="/images/icons/pig.png" alt="Schwein" width="44" height="44" />
 							<span class="animal-count">{impactTotal.animals.pig}</span>
-							<span class="animal-label">Schweine</span>
+							<span class="animal-label">{impactTotal.animals.pig === 1 ? 'Schwein' : 'Schweine'}</span>
 						</div>
 					{/if}
 					{#if impactTotal.animals?.chicken > 0}
 						<div class="animal-col">
 							<img src="/images/icons/chicken.png" alt="Huhn" width="44" height="44" />
 							<span class="animal-count">{impactTotal.animals.chicken}</span>
-							<span class="animal-label">Hühner</span>
+							<span class="animal-label">{impactTotal.animals.chicken === 1 ? 'Huhn' : 'Hühner'}</span>
 						</div>
 					{/if}
 					{#if impactTotal.animals?.fish > 0}
 						<div class="animal-col">
 							<img src="/images/icons/fish.png" alt="Fisch" width="44" height="44" />
 							<span class="animal-count">{impactTotal.animals.fish}</span>
-							<span class="animal-label">Fische</span>
+							<span class="animal-label">{impactTotal.animals.fish === 1 ? 'Fisch' : 'Fische'}</span>
 						</div>
 					{/if}
 					{#if totalAnimals === 0}

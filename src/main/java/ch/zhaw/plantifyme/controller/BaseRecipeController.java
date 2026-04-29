@@ -1,6 +1,7 @@
 package ch.zhaw.plantifyme.controller;
 
 import ch.zhaw.plantifyme.model.dto.BaseRecipeDto;
+import ch.zhaw.plantifyme.model.dto.BaseRecipeListItemDto;
 import ch.zhaw.plantifyme.service.BaseRecipeService;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,11 @@ public class BaseRecipeController {
             return ResponseEntity.ok(baseRecipeService.findByCategory(category));
         }
         return ResponseEntity.ok(baseRecipeService.findAll());
+    }
+
+    @GetMapping("/slim")
+    public ResponseEntity<List<BaseRecipeListItemDto>> getBaseRecipesSlim() {
+        return ResponseEntity.ok(baseRecipeService.findAllSlim());
     }
 
     @GetMapping("/{id}")

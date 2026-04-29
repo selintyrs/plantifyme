@@ -2,6 +2,7 @@ package ch.zhaw.plantifyme.service;
 
 import ch.zhaw.plantifyme.model.BaseRecipe;
 import ch.zhaw.plantifyme.model.dto.BaseRecipeDto;
+import ch.zhaw.plantifyme.model.dto.BaseRecipeListItemDto;
 import ch.zhaw.plantifyme.repository.BaseRecipeRepository;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,19 @@ public class BaseRecipeService {
     public List<BaseRecipeDto> findAll() {
         return baseRecipeRepository.findAll().stream()
                 .map(this::toDto)
+                .toList();
+    }
+
+    public List<BaseRecipeListItemDto> findAllSlim() {
+        return baseRecipeRepository.findAll().stream()
+                .map(r -> new BaseRecipeListItemDto(
+                        r.getId(),
+                        r.getTitle(),
+                        r.getCategory(),
+                        r.getImageUrl(),
+                        r.getPrepTimeMin(),
+                        r.getDifficulty()
+                ))
                 .toList();
     }
 
