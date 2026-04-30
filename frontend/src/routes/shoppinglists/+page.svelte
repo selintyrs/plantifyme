@@ -10,7 +10,7 @@
 		resetForLoad,
 	} from '$lib/stores/shoppingList.js';
 	import { supermarketStore } from '$lib/stores/supermarket.js';
-	import { dictionaryStore } from '$lib/stores/dictionary.js';
+	import { dictionaryStore, loadDictionary } from '$lib/stores/dictionary.js';
 	import { authFetch } from '$lib/api.js';
 
 	let lists = $state([]);
@@ -124,7 +124,8 @@
 		}
 	}
 
-	function loadListIntoStore(list) {
+	async function loadListIntoStore(list) {
+		await loadDictionary();
 		const items = list.items || [];
 		const dictionary = get(dictionaryStore) ?? [];
 

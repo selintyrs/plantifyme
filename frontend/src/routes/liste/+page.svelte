@@ -296,28 +296,6 @@ if (matches.length > 0) {
 		supermarketModalOpen = true;
 	}
 
-	function transformResponseItems(savedItems) {
-		return savedItems.map(item => {
-			const listItem = $shoppingListStore.find(
-				i => i.displayName === item.displayName && (i.subcategory ?? '') === (item.subcategory ?? '')
-			);
-			const existingMatch = $matchResults.find(r => r.displayName === item.displayName);
-			return {
-				itemId: listItem ? listItem.id.toString() : item.itemId,
-				type: item.type,
-				displayName: item.displayName ?? '',
-				uiCategory: item.uiCategory || (listItem?.uiCategory ?? existingMatch?.uiCategory ?? 'Sonstiges'),
-				diyGroupLabel: item.diyGroupLabel || existingMatch?.diyGroupLabel || null,
-				suggestedProduct: item.type !== 'C' && item.productId
-					? { id: item.productId, name: item.name, price: item.price }
-					: null,
-				genericFood: item.type === 'C' && item.genericFoodId
-					? { id: item.genericFoodId }
-					: null,
-			};
-		});
-	}
-
 	async function changeSupermarket(newSupermarket) {
 		supermarketStore.set(newSupermarket);
 		supermarketModalOpen = false;
@@ -331,14 +309,14 @@ if (matches.length > 0) {
 		try {
 			const res = await authFetch(`/api/shoppinglists/${$savedListId}/supermarket`, {
 				method: 'PATCH',
-				headers: {
-					'Content-Type': 'application/json',
-				},
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ supermarket: newSupermarket }),
 			});
 			if (!res.ok) throw new Error(`HTTP ${res.status}`);
-			const data = await res.json();
-			matchResults.set(transformResponseItems(data.items || []));
+			// Backend has persisted the supermarket change; refresh match data
+			// via plantifyMatch() so suggestedProduct contains the full product
+			// payload (impact fields, brand, imageUrl) — not just {id, name, price}.
+			await plantifyMatch();
 		} catch (e) {
 			console.error('Supermarkt wechseln fehlgeschlagen:', e);
 			await plantifyMatch();
@@ -591,16 +569,18 @@ if (matches.length > 0) {
 		return $matchResults.map(r => {
 			const listItem = $shoppingListStore.find(i => i.id.toString() === r.itemId);
 			const qty = listItem?.quantity ?? 1;
-			const isTypeC = r.type === 'C';
+			// Type stays the original from the FrontendDictionary (via shoppingList).
+			// Match status is expressed orthogonally via productId / genericFoodId.
+			const originalType = listItem?.type ?? r.type;
 			return {
 				itemId: crypto.randomUUID(),
-				productId: !isTypeC && r.suggestedProduct ? r.suggestedProduct.id : null,
-				genericFoodId: isTypeC && r.genericFood ? r.genericFood.id : null,
-				type: r.type,
+				productId: r.suggestedProduct ? r.suggestedProduct.id : null,
+				genericFoodId: r.genericFood ? r.genericFood.id : null,
+				type: originalType,
 				displayName: r.displayName ?? '',
 				subcategory: listItem?.subcategory ?? '',
-				name: !isTypeC && r.suggestedProduct ? r.suggestedProduct.name : r.displayName,
-				price: !isTypeC && r.suggestedProduct ? r.suggestedProduct.price : null,
+				name: r.suggestedProduct?.name ?? r.genericFood?.name ?? r.displayName,
+				price: r.suggestedProduct?.price ?? null,
 				quantity: qty,
 				isChecked: false,
 			};

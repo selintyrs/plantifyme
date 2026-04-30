@@ -6,9 +6,12 @@ import ch.zhaw.plantifyme.model.GenericFood;
 import ch.zhaw.plantifyme.model.ShoppingItem;
 import ch.zhaw.plantifyme.model.ShoppingList;
 import ch.zhaw.plantifyme.model.SupermarketProduct;
+import ch.zhaw.plantifyme.model.User;
 import ch.zhaw.plantifyme.model.dto.AddItemRequest;
 import ch.zhaw.plantifyme.model.dto.AddRecipeIngredientsRequest;
 import ch.zhaw.plantifyme.model.dto.CreateListFromRecipeRequest;
+import ch.zhaw.plantifyme.model.dto.MatchResult;
+import ch.zhaw.plantifyme.model.dto.PlantifyMatchResponse;
 import ch.zhaw.plantifyme.model.dto.RecipeIngredientItem;
 import ch.zhaw.plantifyme.model.dto.ReplaceWithDiyRequest;
 import ch.zhaw.plantifyme.repository.DiyRecipeRepository;
@@ -16,6 +19,7 @@ import ch.zhaw.plantifyme.repository.FrontendDictionaryRepository;
 import ch.zhaw.plantifyme.repository.GenericFoodRepository;
 import ch.zhaw.plantifyme.repository.ShoppingListRepository;
 import ch.zhaw.plantifyme.repository.SupermarketProductRepository;
+import ch.zhaw.plantifyme.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -55,6 +59,10 @@ class ShoppingListServiceTest {
     private FrontendDictionaryRepository frontendDictionaryRepository;
     @Mock
     private GenericFoodService genericFoodService;
+    @Mock
+    private PlantifyMatchService plantifyMatchService;
+    @Mock
+    private UserRepository userRepository;
 
     @InjectMocks
     private ShoppingListService service;
@@ -103,6 +111,33 @@ class ShoppingListServiceTest {
         when(shoppingListRepository.save(any(ShoppingList.class))).thenAnswer(inv -> inv.getArgument(0));
     }
 
+    private static PlantifyMatchResponse emptyResponse() {
+        PlantifyMatchResponse r = new PlantifyMatchResponse();
+        r.setMatches(List.of());
+        return r;
+    }
+
+    private static PlantifyMatchResponse responseWith(MatchResult... results) {
+        PlantifyMatchResponse r = new PlantifyMatchResponse();
+        r.setMatches(List.of(results));
+        return r;
+    }
+
+    private static MatchResult matchWithProduct(String itemId, String type, SupermarketProduct product) {
+        MatchResult m = new MatchResult();
+        m.setItemId(itemId);
+        m.setType(type);
+        m.setSuggestedProduct(product);
+        return m;
+    }
+
+    private static MatchResult matchWithoutProduct(String itemId, String type) {
+        MatchResult m = new MatchResult();
+        m.setItemId(itemId);
+        m.setType(type);
+        return m;
+    }
+
     // ── 1. changeSupermarket ───────────────────────────────────────────────
 
     @Nested
@@ -144,13 +179,14 @@ class ShoppingListServiceTest {
         }
 
         @Test
-        @DisplayName("Type-C-Item bleibt unverändert beim Re-Match")
+        @DisplayName("Type-C-Item bleibt unverändert beim Re-Match (wird nicht an match() durchgereicht)")
         void typeCUntouched() {
             ShoppingItem c = item("it-c", "C");
             c.setName("Apfel");
             c.setGenericFoodId("gf-1");
             ShoppingList l = list(OWNER, "Migros", List.of(c));
             when(shoppingListRepository.findById(LIST_ID)).thenReturn(Optional.of(l));
+            when(plantifyMatchService.match(any())).thenReturn(emptyResponse());
             stubSave();
 
             ShoppingList saved = service.changeSupermarket(LIST_ID, OWNER, "Coop").orElseThrow();
@@ -162,25 +198,48 @@ class ShoppingListServiceTest {
         }
 
         @Test
-        @DisplayName("Type-A ohne Match → flips zu C, generic-food fallback via GenericFoodService")
-        void typeAFlipsToCFallback() {
+        @DisplayName("Type-A mit Match → productId/name/price gesetzt, type bleibt 'A'")
+        void typeAWithMatchKeepsType() {
             ShoppingItem a = item("it-a", "A");
+            a.setProductId("old-prod");
+            a.setName("Alt");
+            a.setPrice(1.0);
             ShoppingList l = list(OWNER, "Migros", List.of(a));
             when(shoppingListRepository.findById(LIST_ID)).thenReturn(Optional.of(l));
-            when(supermarketProductRepository.findByMatchingKeyAndSupermarket("Milch", "", "coop"))
-                    .thenReturn(List.of());
-            GenericFood gf = genericFood("gf-9", "Milchersatz", "Drinks");
-            when(genericFoodService.findFlexible("Milch")).thenReturn(Optional.of(gf));
+            SupermarketProduct newProduct = supermarketProduct("new-prod", "Hafermilch", 2.5);
+            when(plantifyMatchService.match(any()))
+                    .thenReturn(responseWith(matchWithProduct("it-a", "A", newProduct)));
             stubSave();
 
             ShoppingList saved = service.changeSupermarket(LIST_ID, OWNER, "Coop").orElseThrow();
 
             ShoppingItem after = saved.getItems().get(0);
-            assertThat(after.getType()).isEqualTo("C");
+            assertThat(after.getType()).isEqualTo("A");
+            assertThat(after.getProductId()).isEqualTo("new-prod");
+            assertThat(after.getName()).isEqualTo("Hafermilch");
+            assertThat(after.getPrice()).isEqualTo(2.5);
+        }
+
+        @Test
+        @DisplayName("Type-A ohne Match → type bleibt 'A', productId/price auf null (kein Type-Flip mehr)")
+        void typeANoMatchKeepsType() {
+            ShoppingItem a = item("it-a", "A");
+            a.setProductId("old-prod");
+            a.setName("Hafermilch");
+            a.setPrice(3.0);
+            ShoppingList l = list(OWNER, "Migros", List.of(a));
+            when(shoppingListRepository.findById(LIST_ID)).thenReturn(Optional.of(l));
+            // match() liefert ein Result ohne suggestedProduct (z.B. weil kein Supermarkt-Match in neuem Markt)
+            when(plantifyMatchService.match(any()))
+                    .thenReturn(responseWith(matchWithoutProduct("it-a", "A")));
+            stubSave();
+
+            ShoppingList saved = service.changeSupermarket(LIST_ID, OWNER, "Coop").orElseThrow();
+
+            ShoppingItem after = saved.getItems().get(0);
+            assertThat(after.getType()).isEqualTo("A");
             assertThat(after.getProductId()).isNull();
-            assertThat(after.getGenericFoodId()).isEqualTo("gf-9");
-            assertThat(after.getName()).isEqualTo("Milchersatz");
-            assertThat(after.getUiCategory()).isEqualTo("Drinks");
+            assertThat(after.getPrice()).isNull();
         }
     }
 

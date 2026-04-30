@@ -32,6 +32,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -353,7 +354,7 @@ class PlantifyMatchServiceTest {
     class GenericFoodFallback {
 
         @Test
-        @DisplayName("no supermarket + no DIY → type flipped to C, generic food by name")
+        @DisplayName("no supermarket + no DIY → type stays original, generic food by name set")
         void genericFoodFallback() {
             GenericFood gf = genericFood("gf1");
             when(supermarketProductRepository.findByMatchingKeyAndSupermarket(any(), any(), any()))
@@ -367,13 +368,13 @@ class PlantifyMatchServiceTest {
                     request("Migros", null, item("1", "Karotten", "A", "", null))
             ));
 
-            assertThat(r.getType()).isEqualTo("C");
+            assertThat(r.getType()).isEqualTo("A");
             assertThat(r.getSuggestedProduct()).isNull();
             assertThat(r.getGenericFood()).isSameAs(gf);
         }
 
         @Test
-        @DisplayName("no supermarket + no DIY + no generic-food → type C, genericFood null")
+        @DisplayName("no supermarket + no DIY + no generic-food → type stays 'A', genericFood null")
         void genericFoodEmpty() {
             when(supermarketProductRepository.findByMatchingKeyAndSupermarket(any(), any(), any()))
                     .thenReturn(List.of());
@@ -386,13 +387,13 @@ class PlantifyMatchServiceTest {
                     request("Migros", null, item("1", "Unbekannt", "A", "", null))
             ));
 
-            assertThat(r.getType()).isEqualTo("C");
+            assertThat(r.getType()).isEqualTo("A");
             assertThat(r.getGenericFood()).isNull();
             assertThat(r.getSuggestedProduct()).isNull();
         }
 
         @Test
-        @DisplayName("allergy filter empties candidates → falls into DIY → otherwise generic-food chain")
+        @DisplayName("allergy filter empties candidates → falls into DIY → otherwise generic-food chain (type stays original)")
         void allergyEmptiedFallsThrough() {
             SupermarketProduct withSoy = product("p1", 1.0, null, "Soja", null);
             when(supermarketProductRepository.findByMatchingKeyAndSupermarket(any(), any(), any()))
@@ -408,8 +409,84 @@ class PlantifyMatchServiceTest {
                             item("1", "Milch", "A", "", null))
             ));
 
-            assertThat(r.getType()).isEqualTo("C");
+            assertThat(r.getType()).isEqualTo("A");
             assertThat(r.getGenericFood()).isSameAs(gf);
+        }
+    }
+
+    // ── 4b. Subcategory hierarchical fallback ──────────────────────────────
+
+    @Nested
+    @DisplayName("Subcategory fallback (specific → broader)")
+    class SubcategoryFallback {
+
+        @Test
+        @DisplayName("Specific match (subcategory='Pastrami') → matchLevel='specific'")
+        void specificMatch() {
+            SupermarketProduct pastrami = product("p-pastrami", 1.0, null, null, null);
+            when(supermarketProductRepository.findByMatchingKeyAndSupermarket("Aufschnitt", "Pastrami", "Migros"))
+                    .thenReturn(List.of(pastrami));
+
+            MatchResult r = onlyResult(service.match(
+                    request("Migros", null, item("1", "Aufschnitt", "A", "Pastrami", null))
+            ));
+
+            assertThat(r.getSuggestedProduct()).isSameAs(pastrami);
+            assertThat(r.getMatchLevel()).isEqualTo("specific");
+        }
+
+        @Test
+        @DisplayName("Pastrami in Migros → fällt zurück auf Aufschnitt (subcategory='') → matchLevel='broader'")
+        void pastramiFallsBackToBroader() {
+            // Specific (Pastrami) → leer
+            when(supermarketProductRepository.findByMatchingKeyAndSupermarket("Aufschnitt", "Pastrami", "Migros"))
+                    .thenReturn(List.of());
+            // Broader (alle Aufschnitte ohne subcategory) → Salami
+            SupermarketProduct salami = product("p-salami", 2.5, null, null, null);
+            when(supermarketProductRepository.findByMatchingKeyAndSupermarket("Aufschnitt", "", "Migros"))
+                    .thenReturn(List.of(salami));
+
+            MatchResult r = onlyResult(service.match(
+                    request("Migros", null, item("1", "Aufschnitt", "A", "Pastrami", null))
+            ));
+
+            assertThat(r.getSuggestedProduct()).isSameAs(salami);
+            assertThat(r.getMatchLevel()).isEqualTo("broader");
+        }
+
+        @Test
+        @DisplayName("Specific UND broader leer → fällt durch zu DIY/Generic-Food, matchLevel=null")
+        void noBroaderFallsThroughToDiyOrGeneric() {
+            when(supermarketProductRepository.findByMatchingKeyAndSupermarket(any(), any(), any()))
+                    .thenReturn(List.of());
+            DiyRecipe diy = diyRecipe("d1", "Selbstgemachter Aufschnitt");
+            when(diyRecipeRepository.findByMatchingDisplayName("Aufschnitt"))
+                    .thenReturn(List.of(diy));
+
+            MatchResult r = onlyResult(service.match(
+                    request("Migros", null, item("1", "Aufschnitt", "A", "Pastrami", null))
+            ));
+
+            assertThat(r.getSuggestedProduct()).isNull();
+            assertThat(r.getFallbackDiyRecipeId()).isEqualTo("d1");
+            assertThat(r.getMatchLevel()).isNull();
+        }
+
+        @Test
+        @DisplayName("Leere subcategory → kein broader-Retry (würde redundant sein)")
+        void emptySubcategoryNoBroaderRetry() {
+            when(supermarketProductRepository.findByMatchingKeyAndSupermarket("Milch", "", "Migros"))
+                    .thenReturn(List.of());
+            when(diyRecipeRepository.findByMatchingDisplayName(any())).thenReturn(List.of());
+            when(genericFoodRepository.findByName(any())).thenReturn(List.of());
+
+            service.match(
+                    request("Migros", null, item("1", "Milch", "A", "", null))
+            );
+
+            // Verify only ONE supermarket query (no broader fallback when subcategory was already empty)
+            verify(supermarketProductRepository, times(1))
+                    .findByMatchingKeyAndSupermarket(any(), any(), any());
         }
     }
 

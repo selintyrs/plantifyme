@@ -6,9 +6,15 @@ import ch.zhaw.plantifyme.model.GenericFood;
 import ch.zhaw.plantifyme.model.ShoppingItem;
 import ch.zhaw.plantifyme.model.ShoppingList;
 import ch.zhaw.plantifyme.model.SupermarketProduct;
+import ch.zhaw.plantifyme.model.User;
 import ch.zhaw.plantifyme.model.dto.AddItemRequest;
 import ch.zhaw.plantifyme.model.dto.AddRecipeIngredientsRequest;
 import ch.zhaw.plantifyme.model.dto.CreateListFromRecipeRequest;
+import ch.zhaw.plantifyme.model.dto.MatchPreferences;
+import ch.zhaw.plantifyme.model.dto.MatchRequestItem;
+import ch.zhaw.plantifyme.model.dto.MatchResult;
+import ch.zhaw.plantifyme.model.dto.PlantifyMatchRequest;
+import ch.zhaw.plantifyme.model.dto.PlantifyMatchResponse;
 import ch.zhaw.plantifyme.model.dto.RecipeIngredientItem;
 import ch.zhaw.plantifyme.model.dto.ReplaceItemRequest;
 import ch.zhaw.plantifyme.model.dto.ReplaceWithDiyRequest;
@@ -19,13 +25,17 @@ import ch.zhaw.plantifyme.repository.FrontendDictionaryRepository;
 import ch.zhaw.plantifyme.repository.GenericFoodRepository;
 import ch.zhaw.plantifyme.repository.ShoppingListRepository;
 import ch.zhaw.plantifyme.repository.SupermarketProductRepository;
+import ch.zhaw.plantifyme.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class ShoppingListService {
@@ -48,9 +58,36 @@ public class ShoppingListService {
     @Autowired
     private GenericFoodService genericFoodService;
 
+    @Autowired
+    private PlantifyMatchService plantifyMatchService;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    private static final Map<String, String> ALLERGY_LABELS = Map.of(
+            "nuts", "Nüsse",
+            "soy", "Soja",
+            "gluten", "Gluten",
+            "sesame", "Sesam",
+            "mustard", "Senf",
+            "celery", "Sellerie",
+            "lupins", "Lupinen"
+    );
+
+    private static final Map<String, String> DIET_MAP = Map.of(
+            "highProtein", "high protein",
+            "lowCarb", "low carb",
+            "glutenFree", "gluten free",
+            "lowCalorie", "low calorie"
+    );
+
     /**
      * Changes the supermarket of a shopping list and re-matches all type A/B items
-     * to products available at the new supermarket.
+     * by delegating to PlantifyMatchService.match() — the single source of truth
+     * for matching logic (allergen filter, preference sort, DIY fallback). Type C
+     * items remain unchanged because they don't depend on the supermarket. Items
+     * without a match keep their original type (no flip to "C") so they can be
+     * re-matched correctly when switching supermarkets again.
      *
      * @throws OwnershipException if userId does not match the list owner
      */
@@ -61,7 +98,6 @@ public class ShoppingListService {
         }
 
         ShoppingList list = optionalList.get();
-
         if (!list.getUserId().equals(userId)) {
             throw new OwnershipException("User " + userId + " does not own list " + listId);
         }
@@ -69,43 +105,78 @@ public class ShoppingListService {
         String normalized = newSupermarket.equalsIgnoreCase("Migros") ? "Migros" : newSupermarket.toLowerCase();
         list.setSupermarket(normalized);
 
-        List<ShoppingItem> updatedItems = list.getItems().stream().map(item -> {
-            if ("C".equals(item.getType())) {
-                return item;
-            }
+        if (list.getItems() == null || list.getItems().isEmpty()) {
+            return Optional.of(shoppingListRepository.save(list));
+        }
 
-            String displayName = item.getDisplayName() != null ? item.getDisplayName() : "";
-            String subcategory = item.getSubcategory() != null ? item.getSubcategory() : "";
+        PlantifyMatchRequest matchRequest = buildMatchRequest(list, userId, normalized);
+        PlantifyMatchResponse matchResponse = plantifyMatchService.match(matchRequest);
 
-            List<SupermarketProduct> matches = supermarketProductRepository
-                    .findByMatchingKeyAndSupermarket(displayName, subcategory, normalized);
+        Map<String, MatchResult> resultsByItemId = matchResponse.getMatches().stream()
+                .collect(Collectors.toMap(MatchResult::getItemId, r -> r));
 
-            if (!matches.isEmpty()) {
-                SupermarketProduct match = matches.get(0);
-                item.setProductId(match.getId());
-                item.setName(match.getName());
-                item.setPrice(match.getPrice());
+        for (ShoppingItem item : list.getItems()) {
+            if ("C".equals(item.getType())) continue;
+
+            MatchResult result = resultsByItemId.get(item.getItemId());
+            if (result == null) continue;
+
+            SupermarketProduct product = result.getSuggestedProduct();
+            if (product != null) {
+                item.setProductId(product.getId());
+                item.setName(product.getName());
+                item.setPrice(product.getPrice());
             } else {
-                item.setType("C");
                 item.setProductId(null);
                 item.setPrice(null);
-                GenericFood fallback = findGenericFoodFlexible(displayName);
-                if (fallback != null) {
-                    item.setGenericFoodId(fallback.getId());
-                    item.setName(fallback.getName());
-                    item.setUiCategory(fallback.getCategory());
-                } else {
-                    item.setName(displayName);
-                }
             }
-
-            return item;
-        }).toList();
-
-        list.setItems(updatedItems);
+        }
 
         ShoppingList saved = shoppingListRepository.save(list);
         return Optional.of(saved);
+    }
+
+    private PlantifyMatchRequest buildMatchRequest(ShoppingList list, String userId, String supermarket) {
+        PlantifyMatchRequest request = new PlantifyMatchRequest();
+        request.setSupermarket(supermarket);
+
+        List<MatchRequestItem> items = list.getItems().stream()
+                .filter(item -> !"C".equals(item.getType()))
+                .map(item -> {
+                    MatchRequestItem ri = new MatchRequestItem();
+                    ri.setItemId(item.getItemId());
+                    ri.setDisplayName(item.getDisplayName() != null ? item.getDisplayName() : "");
+                    ri.setSubcategory(item.getSubcategory() != null ? item.getSubcategory() : "");
+                    ri.setType(item.getType());
+                    return ri;
+                })
+                .toList();
+        request.setItems(items);
+
+        request.setPreferences(buildPreferences(userId));
+        return request;
+    }
+
+    private MatchPreferences buildPreferences(String userId) {
+        MatchPreferences prefs = new MatchPreferences();
+        prefs.setBudget("medium");
+
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null) return prefs;
+
+        if (user.getAllergies() != null) {
+            prefs.setAllergies(user.getAllergies().stream()
+                    .map(ALLERGY_LABELS::get)
+                    .filter(Objects::nonNull)
+                    .toList());
+        }
+        if (user.getDietaryPreferences() != null) {
+            prefs.setDiet(user.getDietaryPreferences().stream()
+                    .map(DIET_MAP::get)
+                    .filter(Objects::nonNull)
+                    .toList());
+        }
+        return prefs;
     }
 
     /**

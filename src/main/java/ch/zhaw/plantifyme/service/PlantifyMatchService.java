@@ -44,14 +44,26 @@ public class PlantifyMatchService {
                         .ifPresent(result::setGenericFood);
             } else {
                 String subcategory = item.getSubcategory() != null ? item.getSubcategory() : "";
+
+                // L5/specific: displayName + subcategory exact
                 List<SupermarketProduct> candidates = supermarketProductRepository
                         .findByMatchingKeyAndSupermarket(item.getDisplayName(), subcategory, request.getSupermarket());
-
                 candidates = filterAllergens(candidates, request.getPreferences());
                 candidates = sortByPreference(candidates, request.getPreferences());
+                String matchLevel = candidates.isEmpty() ? null : "specific";
+
+                // Broader fallback: drop subcategory if specific search was empty and a subcategory was requested
+                if (candidates.isEmpty() && !subcategory.isEmpty()) {
+                    candidates = supermarketProductRepository
+                            .findByMatchingKeyAndSupermarket(item.getDisplayName(), "", request.getSupermarket());
+                    candidates = filterAllergens(candidates, request.getPreferences());
+                    candidates = sortByPreference(candidates, request.getPreferences());
+                    if (!candidates.isEmpty()) matchLevel = "broader";
+                }
 
                 if (!candidates.isEmpty()) {
                     result.setSuggestedProduct(candidates.get(0));
+                    result.setMatchLevel(matchLevel);
                 } else {
                     List<DiyRecipe> matchingDiys = diyRecipeRepository.findByMatchingDisplayName(item.getDisplayName());
                     if (!matchingDiys.isEmpty()) {
@@ -59,7 +71,8 @@ public class PlantifyMatchService {
                         result.setFallbackDiyRecipeId(diy.getId());
                         result.setFallbackDiyRecipeTitle(diy.getTitle());
                     } else {
-                        result.setType("C");
+                        // No supermarket match and no DIY: try generic food as last resort.
+                        // Type stays original — match status is expressed via genericFood field.
                         List<GenericFood> nameMatches = genericFoodRepository.findByName(item.getDisplayName());
                         if (!nameMatches.isEmpty()) result.setGenericFood(nameMatches.get(0));
                     }

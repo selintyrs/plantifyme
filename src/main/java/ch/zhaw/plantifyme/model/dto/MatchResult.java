@@ -17,4 +17,5 @@ public class MatchResult {
     private GenericFood genericFood;             // null for type A/B
     private String fallbackDiyRecipeId;
     private String fallbackDiyRecipeTitle;
+    private String matchLevel; // "specific" | "broader" | null (no match or non-supermarket result)
 }
