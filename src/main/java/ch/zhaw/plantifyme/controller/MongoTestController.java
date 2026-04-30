@@ -1,5 +1,9 @@
 package ch.zhaw.plantifyme.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.http.HttpStatus;
@@ -9,11 +13,20 @@ import org.springframework.web.bind.annotation.RestController;
 import com.mongodb.BasicDBObjectBuilder;
 import com.mongodb.DBObject;
 
+@Tag(name = "Test & Diagnostik", description = "Diagnose-Endpoints für Entwicklung — nicht für Produktivnutzung")
 @RestController
 public class MongoTestController {
     @Autowired
     private MongoTemplate mongoTemplate;
 
+    @Operation(
+            summary = "MongoDB-Verbindung testen",
+            description = "Schreibt ein Test-Dokument, liest es zurück und prüft den Inhalt. Diagnostik-Endpoint zur Verifikation der DB-Verbindung."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Verbindung ok"),
+            @ApiResponse(responseCode = "500", description = "DB-Verbindung fehlgeschlagen")
+    })
     @GetMapping("/testmongodb")
     public ResponseEntity<String> testMongoDb() {
         String failure;

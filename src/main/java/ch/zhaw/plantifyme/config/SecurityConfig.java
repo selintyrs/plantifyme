@@ -22,6 +22,12 @@ public class SecurityConfig {
                                 "/_app/**", "/images/**", "/favicon.ico",
                                 "/*.js", "/*.css", "/*.svg", "/*.png", "/*.ico").permitAll()
                         .requestMatchers("/landing/**", "/login/**", "/signup/**").permitAll()
+                        .requestMatchers(
+                                "/swagger-ui.html",
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**",
+                                "/webjars/**"
+                        ).permitAll()
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll()
                 )

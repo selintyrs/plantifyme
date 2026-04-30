@@ -9,6 +9,8 @@ import ch.zhaw.plantifyme.repository.FrontendDictionaryRepository;
 import ch.zhaw.plantifyme.repository.GenericFoodRepository;
 import ch.zhaw.plantifyme.repository.ShoppingListRepository;
 import ch.zhaw.plantifyme.repository.SupermarketProductRepository;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +23,7 @@ import java.time.LocalDateTime;
 
 import java.util.List;
 
+@Tag(name = "Test & Diagnostik", description = "Diagnose-Endpoints für Entwicklung — nicht für Produktivnutzung")
 @RestController
 @RequestMapping("/api/test")
 public class ProductTestController {
@@ -37,6 +40,7 @@ public class ProductTestController {
     @Autowired
     private ShoppingListRepository shoppingListRepository;
 
+    @Operation(summary = "Erste 5 Supermarkt-Produkte (Test)", description = "Smoke-Test für SupermarketProductRepository.")
     @GetMapping("/products")
     public ResponseEntity<List<SupermarketProduct>> getFirst5Products() {
         List<SupermarketProduct> products = supermarketProductRepository
@@ -45,6 +49,7 @@ public class ProductTestController {
         return ResponseEntity.ok(products);
     }
 
+    @Operation(summary = "Erste 5 Dictionary-Einträge (Test)", description = "Smoke-Test für FrontendDictionaryRepository.")
     @GetMapping("/frontend-dictionary")
     public ResponseEntity<List<FrontendDictionary>> getFirst5FrontendDictionary() {
         List<FrontendDictionary> entries = frontendDictionaryRepository
@@ -53,6 +58,7 @@ public class ProductTestController {
         return ResponseEntity.ok(entries);
     }
 
+    @Operation(summary = "Erstes Typ-A-Dictionary-Item (Test)", description = "Smoke-Test für findFirstByType.")
     @GetMapping("/frontend-dictionary/type-a")
     public ResponseEntity<FrontendDictionary> getFirstTypeAFrontendDictionary() {
         return frontendDictionaryRepository.findFirstByType("A")
@@ -60,6 +66,7 @@ public class ProductTestController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @Operation(summary = "Erste 5 generische Lebensmittel (Test)", description = "Smoke-Test für GenericFoodRepository.")
     @GetMapping("/generic-foods")
     public ResponseEntity<List<GenericFood>> getFirst5GenericFoods() {
         List<GenericFood> foods = genericFoodRepository
@@ -68,6 +75,7 @@ public class ProductTestController {
         return ResponseEntity.ok(foods);
     }
 
+    @Operation(summary = "Testliste anlegen", description = "Erstellt eine Hardcoded-Testliste für 'test-user' mit einem 'Milch'-Item.")
     @PostMapping("/shoppinglists")
     public ResponseEntity<ShoppingList> createTestShoppingList() {
         ShoppingItem milch = ShoppingItem.builder()
@@ -90,6 +98,7 @@ public class ProductTestController {
         return ResponseEntity.ok(saved);
     }
 
+    @Operation(summary = "Alle Listen (ohne Auth-Filter)", description = "Diagnostik: liefert alle Listen aus der DB ohne User-Isolation.")
     @GetMapping("/shoppinglists")
     public ResponseEntity<List<ShoppingList>> getAllShoppingLists() {
         return ResponseEntity.ok(shoppingListRepository.findAll());
