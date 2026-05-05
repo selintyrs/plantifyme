@@ -17,7 +17,8 @@ import java.util.Set;
 @Service
 public class CoachService {
 
-    private static final String SYSTEM_PROMPT_HEADER = """
+    /** Package-private for AiComparisonTest re-use; not part of public API. */
+    static final String SYSTEM_PROMPT_HEADER = """
             Du bist der Plantify Coach, ein freundlicher und kompetenter Berater für vegane Ernährung
             im Schweizer Kontext.
 
@@ -153,7 +154,8 @@ public class CoachService {
         return count;
     }
 
-    private String buildSystemPrompt(List<Article> relevant) {
+    /** Package-private for AiComparisonTest re-use; not part of public API. */
+    String buildSystemPrompt(List<Article> relevant) {
         StringBuilder sb = new StringBuilder(SYSTEM_PROMPT_HEADER);
         sb.append("\nVERFÜGBARE ARTIKEL ALS WISSENSBASIS:\n");
         if (relevant.isEmpty()) {
@@ -169,7 +171,8 @@ public class CoachService {
         return sb.toString();
     }
 
-    private String buildUserPrompt(String message, List<ChatMessage> history) {
+    /** Package-private for AiComparisonTest re-use; not part of public API. */
+    String buildUserPrompt(String message, List<ChatMessage> history) {
         if (history == null || history.isEmpty()) return message;
         StringBuilder sb = new StringBuilder("Bisheriger Gesprächsverlauf:\n");
         for (ChatMessage m : history) {

@@ -24,7 +24,8 @@ import java.util.stream.Collectors;
 @Service
 public class RecipeGenerationService {
 
-    private static final String SYSTEM_PROMPT = """
+    /** Package-private for AiComparisonTest re-use; not part of public API. */
+    static final String SYSTEM_PROMPT = """
             Du bist ein veganer Koch-Experte und Ernährungsberater. Du erstellst kreative,\s
             alltagstaugliche vegane Rezepte für Menschen in der Schweiz.
 
@@ -143,7 +144,8 @@ public class RecipeGenerationService {
         return savedRecipeRepository.save(savedRecipe);
     }
 
-    private String buildUserPrompt(RecipeGenerationRequest request, BaseRecipe baseRecipe) {
+    /** Package-private for AiComparisonTest re-use; not part of public API. */
+    String buildUserPrompt(RecipeGenerationRequest request, BaseRecipe baseRecipe) {
         StringBuilder sb = new StringBuilder("Erstelle ein veganes Rezept");
 
         if (request.getTitle() != null) {
