@@ -1,9 +1,21 @@
 <script>
 	import { onMount } from 'svelte';
-	import { savedListId, matchResults, shoppingListStore, isVeganized, resetAll, resetForLoad, itemIdMap } from '$lib/stores/shoppingList.js';
+	import { get } from 'svelte/store';
+	import { savedListId, matchResults, shoppingListStore, isVeganized, itemIdMap } from '$lib/stores/shoppingList.js';
 	import { supermarketStore } from '$lib/stores/supermarket.js';
 	import { dictionaryStore } from '$lib/stores/dictionary.js';
 	import { authFetch } from '$lib/api.js';
+	import {
+		appendToExistingList,
+		createListFromIngredients,
+		addIngredientsLocallyVeganized,
+	} from '$lib/utils/listOperations.js';
+
+	const EIER_RECIPE_NAME = 'Plantified Eier';
+	const eierExtraMatchFields = (item) => ({
+		fallbackDiyRecipeId: item.fallbackDiyRecipeId ?? null,
+		fallbackDiyRecipeTitle: item.fallbackDiyRecipeTitle ?? null,
+	});
 
 	let recipes = $state([]);
 	let isLoading = $state(true);
@@ -103,6 +115,7 @@
 	}
 
 	function findUiCategory(item) {
+		if (item.uiCategory && item.uiCategory !== '') return item.uiCategory;
 		const dict = $dictionaryStore;
 		if (dict?.length > 0) {
 			const entry = dict.find(e => e.displayName === (item.displayName || item.name));
@@ -113,141 +126,58 @@
 
 	async function handleAddToList() {
 		if (!hasSelection) return;
-		if ($savedListId) {
-			await addToExistingList($savedListId);
-		} else if ($isVeganized && $matchResults.length > 0) {
-			await addToLocalVeganizedList();
-		} else if ($supermarketStore) {
-			await createListFromRecipe($supermarketStore);
+		const listId = get(savedListId);
+		const supermarket = get(supermarketStore);
+
+		if (listId) {
+			try {
+				await appendToExistingList({
+					listId,
+					ingredients: selectedIngredients,
+					recipeName: EIER_RECIPE_NAME,
+					findUiCategory,
+					extraMatchFields: eierExtraMatchFields,
+				});
+				await removeEggItems(listId);
+				showAddedToListToast(selectedIngredients.length);
+			} catch (e) {
+				console.error('Zutaten hinzufügen fehlgeschlagen:', e);
+			}
+		} else if (get(isVeganized) && get(matchResults).length > 0) {
+			if (!supermarket) { supermarketModalOpen = true; return; }
+			try {
+				await addIngredientsLocallyVeganized({
+					supermarket,
+					ingredients: selectedIngredients,
+					recipeName: EIER_RECIPE_NAME,
+					findUiCategory,
+					extraMatchFields: eierExtraMatchFields,
+				});
+				removeEggItemsLocal();
+				showAddedToListToast(selectedIngredients.length);
+			} catch (e) {
+				console.error('Lokales Hinzufügen fehlgeschlagen:', e);
+			}
+		} else if (supermarket) {
+			await pickSupermarket(supermarket);
 		} else {
 			supermarketModalOpen = true;
 		}
 	}
 
-	async function addToLocalVeganizedList() {
-		const supermarket = $supermarketStore;
-		if (!supermarket) {
-			supermarketModalOpen = true;
-			return;
-		}
-
+	async function pickSupermarket(supermarket) {
+		supermarketModalOpen = false;
 		try {
-			const apiSupermarket = supermarket === 'Migros' ? 'Migros' : supermarket.toLowerCase();
-			const res = await authFetch('/api/shoppinglists/from-recipe', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					recipeTitle: 'Plantified Eier',
-					supermarket: apiSupermarket,
-					ingredients: selectedIngredients,
-				}),
+			await createListFromIngredients({
+				supermarket,
+				ingredients: selectedIngredients,
+				recipeName: EIER_RECIPE_NAME,
+				findUiCategory,
+				extraMatchFields: eierExtraMatchFields,
 			});
-
-			if (!res.ok) throw new Error('Match failed');
-			const tempList = await res.json();
-			const newItems = tempList.items || [];
-
-			if (tempList.id) {
-				authFetch(`/api/shoppinglists/${tempList.id}`, { method: 'DELETE' })
-					.catch(e => console.warn('Cleanup failed:', e));
-			}
-
-			const currentMax = $shoppingListStore.length > 0
-				? Math.max(...$shoppingListStore.map(i => i.id))
-				: 0;
-
-			const newStoreItems = newItems.map((item, idx) => ({
-				id: currentMax + idx + 1,
-				displayName: item.displayName || item.name,
-				type: item.type,
-				subcategory: item.subcategory || '',
-				quantity: item.quantity || 1,
-				frontendDictionaryId: null,
-				uiCategory: findUiCategory(item),
-			}));
-
-			const newMatches = newItems.map((item, idx) => ({
-				itemId: (currentMax + idx + 1).toString(),
-				type: item.type,
-				displayName: item.displayName || item.name,
-				subcategory: item.subcategory || '',
-				uiCategory: findUiCategory(item),
-				suggestedProduct: (item.type === 'A' || item.type === 'B') && item.productId
-					? { id: item.productId, name: item.name, price: item.price }
-					: null,
-				genericFood: item.type === 'C' && item.genericFoodId
-					? { id: item.genericFoodId, name: item.name }
-					: null,
-				diyGroupLabel: item.diyGroupLabel || 'Zutat für Plantified Eier',
-				fallbackDiyRecipeId: item.fallbackDiyRecipeId ?? null,
-				fallbackDiyRecipeTitle: item.fallbackDiyRecipeTitle ?? null,
-			}));
-
-			shoppingListStore.update(prev => [...prev, ...newStoreItems]);
-			matchResults.update(prev => [...prev, ...newMatches]);
-
-			removeEggItemsLocal();
-
 			showAddedToListToast(selectedIngredients.length);
 		} catch (e) {
-			console.error('Lokales Hinzufügen fehlgeschlagen:', e);
-		}
-	}
-
-	async function addToExistingList(listId) {
-		try {
-			const res = await authFetch(`/api/shoppinglists/${listId}/items/batch`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ recipeTitle: 'Plantified Eier', ingredients: selectedIngredients }),
-			});
-			if (res.ok) {
-				const updatedList = await res.json();
-				const newItems = (updatedList.items || []).filter(item => item.diyGroupLabel === 'Zutat für Plantified Eier');
-				const currentMax = $shoppingListStore.length > 0 ? Math.max(...$shoppingListStore.map(i => i.id)) : 0;
-
-				const newStoreItems = newItems.map((item, idx) => ({
-					id: currentMax + idx + 1,
-					displayName: item.displayName || item.name,
-					type: item.type,
-					subcategory: item.subcategory || '',
-					quantity: item.quantity || 1,
-					frontendDictionaryId: null,
-					uiCategory: findUiCategory(item),
-				}));
-
-				const newMatches = newItems.map((item, idx) => ({
-					itemId: (currentMax + idx + 1).toString(),
-					type: item.type,
-					displayName: item.displayName || item.name,
-					subcategory: item.subcategory || '',
-					uiCategory: findUiCategory(item),
-					suggestedProduct: (item.type === 'A' || item.type === 'B') && item.productId
-						? { id: item.productId, name: item.name, price: item.price }
-						: null,
-					genericFood: item.type === 'C' && item.genericFoodId
-						? { id: item.genericFoodId, name: item.name }
-						: null,
-					diyGroupLabel: item.diyGroupLabel || null,
-					fallbackDiyRecipeId: item.fallbackDiyRecipeId ?? null,
-					fallbackDiyRecipeTitle: item.fallbackDiyRecipeTitle ?? null,
-				}));
-
-				shoppingListStore.update(prev => [...prev, ...newStoreItems]);
-				matchResults.update(prev => [...prev, ...newMatches]);
-				itemIdMap.update(prev => {
-					const updated = { ...prev };
-					for (const item of newItems) updated[item.itemId] = item.itemId;
-					return updated;
-				});
-				isVeganized.set(true);
-
-				await removeEggItems(listId);
-
-				showAddedToListToast(selectedIngredients.length);
-			}
-		} catch (e) {
-			console.error('Zutaten hinzufügen fehlgeschlagen:', e);
+			console.error('Liste erstellen fehlgeschlagen:', e);
 		}
 	}
 
@@ -284,59 +214,6 @@
 
 		shoppingListStore.update(prev => prev.filter(item => item.displayName?.toLowerCase() !== 'eier'));
 		matchResults.update(prev => prev.filter(r => !eggItemIds.includes(r.itemId)));
-	}
-
-	async function createListFromRecipe(supermarket) {
-		supermarketModalOpen = false;
-		const apiSupermarket = supermarket === 'Migros' ? 'Migros' : supermarket.toLowerCase();
-		try {
-			const res = await authFetch('/api/shoppinglists/from-recipe', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ recipeTitle: 'Plantified Eier', supermarket: apiSupermarket, ingredients: selectedIngredients }),
-			});
-			if (res.ok) {
-				const newList = await res.json();
-				resetAll();
-				savedListId.set(newList.id);
-				supermarketStore.set(supermarket);
-
-				const listItems = newList.items || [];
-				const storeItems = listItems.map((item, idx) => ({
-					id: idx + 1,
-					displayName: item.displayName || item.name,
-					type: item.type,
-					subcategory: item.subcategory || '',
-					quantity: item.quantity || 1,
-					frontendDictionaryId: null,
-					uiCategory: findUiCategory(item),
-				}));
-
-				const newMatches = listItems.map((item, idx) => ({
-					itemId: (idx + 1).toString(),
-					type: item.type,
-					displayName: item.displayName || item.name,
-					subcategory: item.subcategory || '',
-					uiCategory: findUiCategory(item),
-					suggestedProduct: (item.type === 'A' || item.type === 'B') && item.productId
-						? { id: item.productId, name: item.name, price: item.price, supermarket }
-						: null,
-					genericFood: item.type === 'C' && item.genericFoodId
-						? { id: item.genericFoodId, name: item.name }
-						: null,
-					diyGroupLabel: item.diyGroupLabel || null,
-					fallbackDiyRecipeId: item.fallbackDiyRecipeId ?? null,
-					fallbackDiyRecipeTitle: item.fallbackDiyRecipeTitle ?? null,
-				}));
-
-				resetForLoad(storeItems);
-				matchResults.set(newMatches);
-				isVeganized.set(true);
-				showAddedToListToast(selectedIngredients.length);
-			}
-		} catch (e) {
-			console.error('Liste erstellen fehlgeschlagen:', e);
-		}
 	}
 </script>
 
@@ -430,15 +307,15 @@
 			</div>
 			<p class="modal-subtitle">Wähle deinen Supermarkt. Die Zutaten werden mit Produkten aus deinem Supermarkt abgeglichen.</p>
 			<div class="supermarket-list">
-				<button class="supermarket-btn" onclick={() => createListFromRecipe('Migros')}>
+				<button class="supermarket-btn" onclick={() => pickSupermarket('Migros')}>
 					<span class="supermarket-name">Migros</span>
 					<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
 				</button>
-				<button class="supermarket-btn" onclick={() => createListFromRecipe('Coop')}>
+				<button class="supermarket-btn" onclick={() => pickSupermarket('Coop')}>
 					<span class="supermarket-name">Coop</span>
 					<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
 				</button>
-				<button class="supermarket-btn" onclick={() => createListFromRecipe('Aldi')}>
+				<button class="supermarket-btn" onclick={() => pickSupermarket('Aldi')}>
 					<span class="supermarket-name">Aldi</span>
 					<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
 				</button>

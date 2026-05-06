@@ -2,10 +2,12 @@
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
-	import { savedListId, matchResults, itemIdMap, isVeganized, shoppingListStore, resetForLoad, resetAll } from '$lib/stores/shoppingList.js';
 	import { dictionaryStore } from '$lib/stores/dictionary.js';
-	import { supermarketStore } from '$lib/stores/supermarket.js';
 	import { authFetch } from '$lib/api.js';
+	import {
+		addIngredientsToShoppingList,
+		createListFromIngredients,
+	} from '$lib/utils/listOperations.js';
 
 	let recipeId = $page.params.recipeId;
 	let recipe = $state(null);
@@ -157,13 +159,23 @@
 		ingredientModalOpen = false;
 		selectedIngredients = collectSelectedIngredients();
 
-		if ($savedListId) {
-			await addToExistingList($savedListId);
-		} else if ($supermarketStore) {
-			await createListFromRecipe($supermarketStore);
-		} else {
-			supermarketModalOpen = true;
-		}
+		await addIngredientsToShoppingList({
+			ingredients: selectedIngredients,
+			recipeName: recipe.title,
+			findUiCategory,
+			beforeApiCall: async () => {
+				try {
+					await authFetch(`/api/saved-recipes/${recipeId}/save`, { method: 'POST' });
+					isSaved = true;
+				} catch (e) { /* not critical */ }
+			},
+			onSupermarketRequired: () => { supermarketModalOpen = true; },
+			onSuccess: (count) => showAddedToListToast(count),
+			onError: (e) => {
+				console.error('Listen-Übernahme fehlgeschlagen:', e);
+				showToast('Fehler beim Hinzufügen');
+			},
+		});
 	}
 
 	function findUiCategory(item) {
@@ -207,130 +219,21 @@
 		return 'Sonstiges';
 	}
 
-	async function addToExistingList(listId) {
-		try {
-			await authFetch(`/api/saved-recipes/${recipeId}/save`, { method: 'POST' });
-			isSaved = true;
-		} catch (e) { /* not critical */ }
-
-		try {
-			const res = await authFetch(`/api/shoppinglists/${listId}/items/batch`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ recipeTitle: recipe.title, ingredients: selectedIngredients })
-			});
-			if (res.ok) {
-				const updatedList = await res.json();
-				const expectedLabel = 'Zutat für ' + recipe.title;
-				const newItems = (updatedList.items || []).filter(item => item.diyGroupLabel === expectedLabel);
-
-				const currentMax = $shoppingListStore.length > 0
-					? Math.max(...$shoppingListStore.map(i => i.id))
-					: 0;
-
-				const newStoreItems = newItems.map((item, idx) => ({
-					id: currentMax + idx + 1,
-					displayName: item.displayName || item.name,
-					type: item.type,
-					subcategory: item.subcategory || '',
-					quantity: item.quantity || 1,
-					frontendDictionaryId: null,
-					uiCategory: findUiCategory(item)
-				}));
-
-				const newMatches = newItems.map((item, idx) => ({
-					itemId: (currentMax + idx + 1).toString(),
-					type: item.type,
-					displayName: item.displayName || item.name,
-					subcategory: item.subcategory || '',
-					uiCategory: findUiCategory(item),
-					suggestedProduct: (item.type === 'A' || item.type === 'B') && item.productId
-						? { id: item.productId, name: item.name, price: item.price }
-						: null,
-					genericFood: item.type === 'C' && item.genericFoodId
-						? { id: item.genericFoodId, name: item.name }
-						: null,
-					diyGroupLabel: item.diyGroupLabel || null
-				}));
-
-				shoppingListStore.update(prev => [...prev, ...newStoreItems]);
-				matchResults.update(prev => [...prev, ...newMatches]);
-				itemIdMap.update(prev => {
-					const updated = { ...prev };
-					for (const item of newItems) { updated[item.itemId] = item.itemId; }
-					return updated;
-				});
-				isVeganized.set(true);
-
-				showAddedToListToast(selectedIngredients.length);
-			} else {
-				showToast('Fehler beim Hinzufügen');
-			}
-		} catch (e) {
-			console.error('Zur Liste hinzufügen fehlgeschlagen:', e);
-			showToast('Fehler beim Hinzufügen');
-		}
-	}
-
-	async function createListFromRecipe(supermarket) {
+	async function pickSupermarket(supermarket) {
 		supermarketModalOpen = false;
-
-		const apiSupermarket = supermarket === 'Migros' ? 'Migros' : supermarket.toLowerCase();
-
 		try {
 			await authFetch(`/api/saved-recipes/${recipeId}/save`, { method: 'POST' });
 			isSaved = true;
 		} catch (e) { /* not critical */ }
 
 		try {
-			const res = await authFetch('/api/shoppinglists/from-recipe', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ recipeTitle: recipe.title, supermarket: apiSupermarket, ingredients: selectedIngredients })
+			await createListFromIngredients({
+				supermarket,
+				ingredients: selectedIngredients,
+				recipeName: recipe.title,
+				findUiCategory,
 			});
-			if (res.ok) {
-				const newList = await res.json();
-
-				resetAll();
-
-				savedListId.set(newList.id);
-				supermarketStore.set(supermarket);
-
-				const listItems = newList.items || [];
-
-				const storeItems = listItems.map((item, idx) => ({
-					id: idx + 1,
-					displayName: item.displayName || item.name,
-					type: item.type,
-					subcategory: item.subcategory || '',
-					quantity: item.quantity || 1,
-					frontendDictionaryId: null,
-					uiCategory: findUiCategory(item)
-				}));
-
-				const newMatches = listItems.map((item, idx) => ({
-					itemId: (idx + 1).toString(),
-					type: item.type,
-					displayName: item.displayName || item.name,
-					subcategory: item.subcategory || '',
-					uiCategory: findUiCategory(item),
-					suggestedProduct: (item.type === 'A' || item.type === 'B') && item.productId
-						? { id: item.productId, name: item.name, price: item.price, supermarket }
-						: null,
-					genericFood: item.type === 'C' && item.genericFoodId
-						? { id: item.genericFoodId, name: item.name }
-						: null,
-					diyGroupLabel: item.diyGroupLabel || null
-				}));
-
-				resetForLoad(storeItems);
-				matchResults.set(newMatches);
-				isVeganized.set(true);
-
-				showAddedToListToast(selectedIngredients.length);
-			} else {
-				showToast('Fehler beim Erstellen der Liste');
-			}
+			showAddedToListToast(selectedIngredients.length);
 		} catch (e) {
 			console.error('Liste erstellen fehlgeschlagen:', e);
 			showToast('Fehler beim Erstellen der Liste');
@@ -392,19 +295,19 @@
 			</div>
 			<p class="modal-subtitle">Wähle deinen Supermarkt. Die Zutaten werden mit Produkten aus deinem Supermarkt abgeglichen.</p>
 			<div class="supermarket-list">
-				<button class="supermarket-btn" onclick={() => createListFromRecipe('Migros')}>
+				<button class="supermarket-btn" onclick={() => pickSupermarket('Migros')}>
 					<span class="supermarket-name">Migros</span>
 					<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 						<path d="m9 18 6-6-6-6"/>
 					</svg>
 				</button>
-				<button class="supermarket-btn" onclick={() => createListFromRecipe('Coop')}>
+				<button class="supermarket-btn" onclick={() => pickSupermarket('Coop')}>
 					<span class="supermarket-name">Coop</span>
 					<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 						<path d="m9 18 6-6-6-6"/>
 					</svg>
 				</button>
-				<button class="supermarket-btn" onclick={() => createListFromRecipe('Aldi')}>
+				<button class="supermarket-btn" onclick={() => pickSupermarket('Aldi')}>
 					<span class="supermarket-name">Aldi</span>
 					<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 						<path d="m9 18 6-6-6-6"/>

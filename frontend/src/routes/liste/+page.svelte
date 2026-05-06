@@ -207,7 +207,12 @@
 		const params = new URLSearchParams(window.location.search);
 		if (params.get('reload') === '1' && $shoppingListStore.length > 0) {
 			plantifyMatch();
-			window.history.replaceState({}, '', window.location.pathname);
+			// Note: deliberately NOT calling history.replaceState here.
+			// Doing so corrupts the back-stack: a user navigating
+			// /shoppinglists → /liste?reload=1 → /products/{id} would, after
+			// pressing back, skip /liste and land on /shoppinglists instead.
+			// The ?reload=1 param staying in the URL is harmless — plantifyMatch
+			// is idempotent on re-mount (e.g. F5).
 		}
 	});
 
