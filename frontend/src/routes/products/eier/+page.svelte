@@ -9,6 +9,7 @@
 		appendToExistingList,
 		createListFromIngredients,
 		addIngredientsLocallyVeganized,
+		isShoppableIngredient,
 	} from '$lib/utils/listOperations.js';
 
 	const EIER_RECIPE_NAME = 'Plantified Eier';
@@ -258,7 +259,7 @@
 							{/if}
 							<div class="ing-list">
 								{#each (recipe.ingredients || []) as ing, i}
-									{#if ing.name !== 'Wasser'}
+									{#if isShoppableIngredient(ing)}
 										<button
 											class="ing-row"
 											class:ing-unchecked={!checkedMap[i]}

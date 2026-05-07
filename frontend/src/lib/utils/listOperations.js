@@ -11,6 +11,15 @@ import {
 } from '$lib/stores/shoppingList.js';
 import { supermarketStore } from '$lib/stores/supermarket.js';
 
+/**
+ * Predicate: returns true if the ingredient should appear in shopping-list
+ * pickers. Filters out water (case-insensitive) since the backend strips
+ * it server-side anyway — keeping it in the picker only confuses users.
+ */
+export function isShoppableIngredient(ingredient) {
+	return ingredient?.name?.toLowerCase() !== 'wasser';
+}
+
 function nextItemId() {
 	const list = get(shoppingListStore);
 	return list.length > 0 ? Math.max(...list.map((i) => i.id)) : 0;

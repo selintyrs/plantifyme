@@ -7,6 +7,7 @@
 	import {
 		addIngredientsToShoppingList,
 		createListFromIngredients,
+		isShoppableIngredient,
 	} from '$lib/utils/listOperations.js';
 
 	let id = $page.params.id;
@@ -49,7 +50,7 @@
 	function openIngredientModal() {
 		const map = {};
 		(recipe.ingredients || []).forEach((ing, i) => {
-			if (ing.name !== 'Wasser') map[i] = true;
+			if (isShoppableIngredient(ing)) map[i] = true;
 		});
 		ingredientCheckedMap = map;
 		ingredientModalOpen = true;
@@ -372,7 +373,7 @@
 			<p class="modal-subtitle">Wähle die Zutaten ab, die du nicht auf deiner Einkaufsliste benötigst (z.B. weil du sie schon zuhause hast).</p>
 			<div class="modal-list">
 				{#each recipe.ingredients || [] as ing, i}
-					{#if ing.name !== 'Wasser'}
+					{#if isShoppableIngredient(ing)}
 						<label class="modal-item">
 							<input type="checkbox" class="modal-checkbox" bind:checked={ingredientCheckedMap[i]} />
 							<span class="modal-item-name">{ing.name}</span>

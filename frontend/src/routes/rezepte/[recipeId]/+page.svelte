@@ -7,6 +7,7 @@
 	import {
 		addIngredientsToShoppingList,
 		createListFromIngredients,
+		isShoppableIngredient,
 	} from '$lib/utils/listOperations.js';
 
 	let recipeId = $page.params.recipeId;
@@ -336,11 +337,13 @@
 			<p class="modal-subtitle">Wähle die Zutaten ab, die du nicht auf deiner Einkaufsliste benötigst (z.B. weil du sie schon zuhause hast).</p>
 			<div class="modal-list">
 				{#each recipe.ingredients || [] as ing, i}
-					<label class="modal-item">
-						<input type="checkbox" class="modal-checkbox" bind:checked={ingredientCheckedMap[i]} />
-						<span class="modal-item-name">{ing.name}</span>
-						<span class="modal-item-amount">{formatIngredientAmount(ing)}</span>
-					</label>
+					{#if isShoppableIngredient(ing)}
+						<label class="modal-item">
+							<input type="checkbox" class="modal-checkbox" bind:checked={ingredientCheckedMap[i]} />
+							<span class="modal-item-name">{ing.name}</span>
+							<span class="modal-item-amount">{formatIngredientAmount(ing)}</span>
+						</label>
+					{/if}
 				{/each}
 			</div>
 			<div class="modal-footer">
