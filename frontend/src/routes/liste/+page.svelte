@@ -78,11 +78,8 @@
 	let supermarketDraft = $state("Migros");
 	const supermarkets = ["Migros", "Coop", "Aldi"];
 
-	// ── Long-press / subcategory modal ────────────────────────────────────────
-	let subcatModal = $state(false);
-	let subcatEntry = $state(null);
-	let subcatSelected = $state("");
-	let longPressTimer = null;
+	// ── Inline accordion (Subcategory expansion) ──────────────────────────────
+	let expandedEntryId = $state(null);
 
 	// ── Delete confirmation ───────────────────────────────────────────────────
 	let pendingDeleteId = $state(null);
@@ -370,6 +367,7 @@ if (matches.length > 0) {
 		modalOpen = false;
 		query = "";
 		selectedCategory = null;
+		expandedEntryId = null;
 	}
 
 	async function handleEntryTap(entry) {
@@ -400,44 +398,106 @@ if (matches.length > 0) {
 		}
 	}
 
-	// ── Long press ────────────────────────────────────────────────────────────
-	function startLongPress(entry) {
-		if (!entry.additionalOptions || entry.additionalOptions.length === 0)
-			return;
-		longPressTimer = setTimeout(() => {
-			subcatEntry = entry;
-			subcatSelected = "";
-			subcatModal = true;
-		}, 500);
+	// ── Inline accordion ──────────────────────────────────────────────────────
+	function isAddedWithSub(entry, subcategory) {
+		return $shoppingListStore.some(
+			(i) => i.frontendDictionaryId === entry.id && i.subcategory === subcategory,
+		);
 	}
 
-	function cancelLongPress() {
-		clearTimeout(longPressTimer);
-	}
-
-	async function confirmSubcat() {
+	async function addParentEmpty(entry) {
 		isSaved = false;
-		if (subcatEntry) {
-			addRecentProduct(subcatEntry);
-			const listIdToSync = $savedListId;
-			const entrySnapshot = subcatEntry;
-			const subcatSnapshot = subcatSelected;
-			addItem(subcatEntry, subcatSelected);
+		addRecentProduct(entry);
+		const listIdToSync = $savedListId;
+		addItem(entry, "");
+		if ($isVeganized) {
+			const added = $shoppingListStore.find(
+				(i) => i.frontendDictionaryId === entry.id && i.subcategory === "",
+			);
+			if (added) await matchSingleItem(added);
+		}
+		if (listIdToSync) {
+			await syncItemToBackend(listIdToSync, entry, "", 1);
+		}
+	}
+
+	function removeParentEmpty(entry) {
+		isSaved = false;
+		const item = $shoppingListStore.find(
+			(i) => i.frontendDictionaryId === entry.id && i.subcategory === "",
+		);
+		if (item) {
+			removeItem(item.id);
 			if ($isVeganized) {
-				const added = $shoppingListStore.find(
-					(i) =>
-						i.frontendDictionaryId === subcatEntry.id &&
-						i.subcategory === subcatSelected,
+				matchResults.update((prev) =>
+					prev.filter((r) => r.itemId !== item.id.toString()),
 				);
-				if (added) await matchSingleItem(added);
-			}
-			if (listIdToSync) {
-				await syncItemToBackend(listIdToSync, entrySnapshot, subcatSnapshot, 1);
 			}
 		}
-		subcatModal = false;
-		subcatEntry = null;
-		subcatSelected = "";
+	}
+
+	async function toggleExpand(entry) {
+		if (expandedEntryId === entry.id) {
+			expandedEntryId = null;
+			return;
+		}
+		expandedEntryId = entry.id;
+		const hasAny =
+			isAdded(entry) ||
+			(entry.additionalOptions ?? []).some((o) =>
+				isAddedWithSub(entry, o.optionName),
+			);
+		if (!hasAny) {
+			await addParentEmpty(entry);
+		}
+	}
+
+	async function toggleParentEmpty(entry) {
+		if (isAddedWithSub(entry, "")) {
+			removeParentEmpty(entry);
+		} else {
+			await addParentEmpty(entry);
+		}
+	}
+
+	async function toggleSubcategory(entry, optionName) {
+		isSaved = false;
+		if (isAddedWithSub(entry, optionName)) {
+			const item = $shoppingListStore.find(
+				(i) =>
+					i.frontendDictionaryId === entry.id &&
+					i.subcategory === optionName,
+			);
+			if (item) {
+				removeItem(item.id);
+				if ($isVeganized) {
+					matchResults.update((prev) =>
+						prev.filter((r) => r.itemId !== item.id.toString()),
+					);
+				}
+			}
+			return;
+		}
+
+		addRecentProduct(entry);
+		const listIdToSync = $savedListId;
+		addItem(entry, optionName);
+		if ($isVeganized) {
+			const added = $shoppingListStore.find(
+				(i) =>
+					i.frontendDictionaryId === entry.id &&
+					i.subcategory === optionName,
+			);
+			if (added) await matchSingleItem(added);
+		}
+		if (listIdToSync) {
+			await syncItemToBackend(listIdToSync, entry, optionName, 1);
+		}
+
+		// β-Smart: parent-empty wird automatisch entfernt, sobald eine Sub gewählt wird.
+		if (isAddedWithSub(entry, "")) {
+			removeParentEmpty(entry);
+		}
 	}
 
 	// ── Quantity / delete ─────────────────────────────────────────────────────
@@ -1334,32 +1394,78 @@ if (matches.length > 0) {
 		</div>
 
 		{#snippet entryItem(entry)}
-			{@const added = isAdded(entry)}
 			{@const hasOptions = entry.additionalOptions && entry.additionalOptions.length > 0}
+			{@const expanded = expandedEntryId === entry.id}
+			{@const parentChecked = isAddedWithSub(entry, "")}
+			{@const anySubChecked = hasOptions && entry.additionalOptions.some((o) => isAddedWithSub(entry, o.optionName))}
+			{@const showCheck = !hasOptions ? isAdded(entry) : parentChecked}
 			<button
 				class="entry-row"
-				class:entry-added={added}
-				onclick={() => handleEntryTap(entry)}
-				onmousedown={() => startLongPress(entry)}
-				onmouseup={cancelLongPress}
-				onmouseleave={cancelLongPress}
-				ontouchstart={() => startLongPress(entry)}
-				ontouchend={cancelLongPress}
+				class:entry-added={!hasOptions && isAdded(entry)}
+				class:entry-expanded={expanded}
+				onclick={() => hasOptions ? toggleExpand(entry) : handleEntryTap(entry)}
 			>
 				<div class="entry-info">
 					<span class="entry-name">{entry.displayName}</span>
-					{#if hasOptions}
-						<span class="entry-options-hint">optional spezifizieren</span>
-					{/if}
 				</div>
 				<span class="entry-action">
-					{#if added}
+					{#if hasOptions}
+						<svg
+							class="entry-chevron"
+							class:entry-chevron-open={expanded}
+							xmlns="http://www.w3.org/2000/svg"
+							width="18"
+							height="18"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2.5"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						><polyline points="6 9 12 15 18 9"/></svg>
+					{:else if showCheck}
 						<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
 					{:else}
 						<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
 					{/if}
 				</span>
 			</button>
+
+			{#if hasOptions && expanded}
+				<div class="suboption-list">
+					<button
+						class="suboption-row"
+						class:suboption-added={parentChecked}
+						onclick={() => toggleParentEmpty(entry)}
+					>
+						<span class="suboption-name suboption-generic">Ohne Spezifizierung</span>
+						<span class="entry-action">
+							{#if parentChecked}
+								<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+							{:else}
+								<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+							{/if}
+						</span>
+					</button>
+					{#each entry.additionalOptions as opt (opt.optionName)}
+						{@const subChecked = isAddedWithSub(entry, opt.optionName)}
+						<button
+							class="suboption-row"
+							class:suboption-added={subChecked}
+							onclick={() => toggleSubcategory(entry, opt.optionName)}
+						>
+							<span class="suboption-name">{opt.optionName}</span>
+							<span class="entry-action">
+								{#if subChecked}
+									<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+								{:else}
+									<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+								{/if}
+							</span>
+						</button>
+					{/each}
+				</div>
+			{/if}
 		{/snippet}
 
 		{#if !query}
@@ -1551,34 +1657,6 @@ if (matches.length > 0) {
 				supermarketModalOpen = false;
 			}}>Abbrechen</button
 		>
-	</div>
-{/if}
-
-<!-- ══════════════════════════════════════════════ SUBCATEGORY MODAL ══════ -->
-{#if subcatModal && subcatEntry}
-	<div
-		class="backdrop backdrop-top"
-		onclick={() => {
-			subcatModal = false;
-		}}
-		role="presentation"
-	></div>
-	<div class="subcat-dialog" role="dialog" aria-modal="true">
-		<h3>{subcatEntry.displayName} spezifizieren</h3>
-		<div class="subcat-options">
-			{#each subcatEntry.additionalOptions as opt}
-				<button
-					class="subcat-btn"
-					class:subcat-selected={subcatSelected === opt.optionName}
-					onclick={() => {
-						subcatSelected = opt.optionName;
-					}}
-				>
-					{opt.optionName}
-				</button>
-			{/each}
-		</div>
-		<button class="btn-primary" onclick={confirmSubcat}>Hinzufügen</button>
 	</div>
 {/if}
 
@@ -1831,10 +1909,50 @@ if (matches.length > 0) {
 		flex: 1;
 	}
 
-	.entry-options-hint {
-		font-size: 0.6875rem;
+	.entry-chevron {
+		transition: transform 0.18s ease;
+	}
+
+	.entry-chevron-open {
+		transform: rotate(180deg);
+	}
+
+	.suboption-list {
+		display: flex;
+		flex-direction: column;
+		margin: 0 0 4px 16px;
+		border-left: 2px solid var(--color-border);
+		padding-left: 4px;
+	}
+
+	.suboption-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		width: 100%;
+		padding: 9px 12px;
+		border-radius: 8px;
+		background: transparent;
+		text-align: left;
+		transition: background 0.12s ease;
+	}
+
+	.suboption-row:active {
+		background: var(--color-primary-light);
+	}
+
+	.suboption-added {
+		background: var(--color-primary-light);
+	}
+
+	.suboption-name {
+		font-size: 0.875rem;
+		color: var(--color-text);
+	}
+
+	.suboption-generic {
+		font-style: italic;
 		color: var(--color-text-light);
-		line-height: 1.2;
 	}
 
 	/* ── Item list ────────────────────────────────────────────────────────── */
@@ -2092,10 +2210,6 @@ if (matches.length > 0) {
 		inset: 0;
 		background: rgba(0, 0, 0, 0.4);
 		z-index: 60;
-	}
-
-	.backdrop-top {
-		z-index: 80;
 	}
 
 	.backdrop-blur {
@@ -2466,53 +2580,6 @@ if (matches.length > 0) {
 
 	.new-list-delete-btn:active {
 		background: #fef2f2;
-	}
-
-	/* ── Subcategory dialog ───────────────────────────────────────────────── */
-	.subcat-dialog {
-		position: fixed;
-		top: 50%;
-		left: 50%;
-		transform: translate(-50%, -50%);
-		width: calc(100% - 48px);
-		max-width: 340px;
-		background: var(--color-bg);
-		border-radius: 16px;
-		padding: 24px;
-		z-index: 90;
-		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.16);
-		display: flex;
-		flex-direction: column;
-		gap: 16px;
-	}
-
-	.subcat-dialog h3 {
-		font-size: 1rem;
-		font-weight: 700;
-		color: var(--color-text);
-	}
-
-	.subcat-options {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 8px;
-	}
-
-	.subcat-btn {
-		padding: 8px 16px;
-		border-radius: 20px;
-		border: 1.5px solid var(--color-border);
-		font-size: 0.875rem;
-		color: var(--color-text);
-		background: var(--color-bg);
-		transition: all 0.12s ease;
-	}
-
-	.subcat-selected {
-		border-color: var(--color-primary);
-		background: var(--color-primary-light);
-		color: var(--color-primary);
-		font-weight: 600;
 	}
 
 	/* ── Impact section ───────────────────────────────────────────────────── */
