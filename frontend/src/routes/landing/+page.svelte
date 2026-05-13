@@ -12,7 +12,7 @@
 					<path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>
 				</svg>
 			</div>
-			<span class="brand">Plantify</span>
+			<span class="brand">Plantify-Me</span>
 		</div>
 
 		<h1 class="hero-title">Veganer einkaufen war nie einfacher</h1>
@@ -32,7 +32,7 @@
 
 	<!-- 2. Feature highlights ────────────────────────────────────────────── -->
 	<section class="section">
-		<h2 class="section-title">Was du mit Plantify kannst</h2>
+		<h2 class="section-title">Was du mit Plantify-Me kannst</h2>
 		<div class="feature-list">
 			<div class="feature-card">
 				<div class="feature-icon-wrap">
@@ -87,7 +87,7 @@
 			</div>
 			<div class="step-card">
 				<span class="step-number">2</span>
-				<span class="step-title">Plantify Me</span>
+				<span class="step-title">Plantify-Me</span>
 				<span class="step-sub">Veganisieren mit einem Klick</span>
 			</div>
 			<div class="step-card">
@@ -142,7 +142,7 @@
 			<button class="footer-link" onclick={() => goto('/info/impressum')}>Impressum</button>
 			<button class="footer-link" onclick={() => goto('/info/datenschutz')}>Datenschutz</button>
 		</div>
-		<span class="copyright">© 2026 Plantify</span>
+		<span class="copyright">© 2026 Plantify-Me</span>
 	</footer>
 </div>
 

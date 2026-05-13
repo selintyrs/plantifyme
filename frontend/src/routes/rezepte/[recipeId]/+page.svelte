@@ -479,7 +479,7 @@
 			<div class="steps-list">
 				{#each recipe.instructions || [] as step, i}
 					<div class="step">
-						<p class="step-header">Schritt {step.step || i + 1}/{(recipe.instructions || []).length}</p>
+						<div class="step-circle">{step.step || i + 1}</div>
 						<p class="step-text">{step.text}</p>
 					</div>
 				{/each}
@@ -788,25 +788,36 @@
 	}
 
 	.step {
-		margin-bottom: 24px;
+		display: flex;
+		align-items: flex-start;
+		gap: 12px;
+		margin-bottom: 20px;
 	}
 
 	.step:last-child {
 		margin-bottom: 0;
 	}
 
-	.step-header {
-		font-size: 1.0625rem;
+	.step-circle {
+		flex-shrink: 0;
+		width: 36px;
+		height: 36px;
+		border-radius: 50%;
+		background: var(--color-primary-light);
+		color: var(--color-primary);
+		font-size: 1rem;
 		font-weight: 700;
-		color: var(--color-text);
-		margin: 0 0 8px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
 	}
 
 	.step-text {
 		font-size: 0.9375rem;
 		color: var(--color-text);
-		line-height: 1.7;
+		line-height: 1.5;
 		margin: 0;
+		padding-top: 6px;
 	}
 
 	/* Spinner / Error */

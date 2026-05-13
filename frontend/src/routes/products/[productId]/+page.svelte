@@ -460,7 +460,7 @@
 </script>
 
 <svelte:head>
-	<title>{product ? product.name : 'Produkt'} – Plantify</title>
+	<title>{product ? product.name : 'Produkt'} – Plantify-Me</title>
 </svelte:head>
 
 <!-- ── Loading ───────────────────────────────────────────────────────────── -->
@@ -522,6 +522,17 @@
 				</button>
 			{/if}
 		</div>
+		{#if (product.qty && product.unit) || (product.pricePerUnit && product.pricePerUnitLabel)}
+			<div class="product-meta">
+				{#if product.qty && product.unit}
+					<span class="meta-amount">{product.qty} {product.unit}{#if product.amount && product.amount > 1} × {product.amount}{/if}</span>
+				{/if}
+				{#if product.pricePerUnit && product.pricePerUnitLabel}
+					<span class="meta-price-per-unit">CHF {product.pricePerUnit} / {product.pricePerUnitLabel.replace(/^CHF\//, '')}</span>
+				{/if}
+			</div>
+		{/if}
+
 	</div>
 
 	<!-- Tab bar (sticky, below info) -->
@@ -544,20 +555,25 @@
 	<!-- Tab content -->
 	<div class="tab-content">
 		{#if activeTab === 'produkt'}
-			<!-- Badges -->
-			{#if product.isBio || product.isGlutenFree || product.hasAdditives}
-				<div class="badges-row">
+			<!-- Attribute row -->
+			{#if product.isBio || product.isGlutenFree || product.hasAdditives !== undefined && product.hasAdditives !== null}
+				<div class="product-attributes">
 					{#if product.isBio}
-						<span class="badge badge-green">
-							<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>
-							Bio
+						<span class="attribute-item">
+							<span class="attribute-check"></span> Bio
 						</span>
 					{/if}
 					{#if product.isGlutenFree}
-						<span class="badge badge-green">Glutenfrei</span>
+						<span class="attribute-item">
+							<span class="attribute-check"></span> Glutenfrei
+						</span>
 					{/if}
-					{#if product.hasAdditives}
-						<span class="badge badge-gray">Mit Zusatzstoffen</span>
+					{#if product.hasAdditives === false}
+						<span class="attribute-item">
+							<span class="attribute-check"></span> Ohne Zusatzstoffe
+						</span>
+					{:else if product.hasAdditives === true}
+						<span class="attribute-item attribute-muted">Mit Zusatzstoffen</span>
 					{/if}
 				</div>
 			{/if}
@@ -566,7 +582,7 @@
 			{#if product.ingredients && product.ingredients.length > 0}
 				<div class="section">
 					<h2 class="section-title">Zutaten</h2>
-					<p class="section-text">{product.ingredients.join(', ')}</p>
+					<p class="ingredient-text">{product.ingredients.join(', ')}</p>
 				</div>
 			{/if}
 
@@ -574,7 +590,7 @@
 			{#if product.allergensContains}
 				<div class="section">
 					<h2 class="section-title">Enthält</h2>
-					<p class="section-text">{product.allergensContains}</p>
+					<p class="ingredient-text">{product.allergensContains}</p>
 				</div>
 			{/if}
 
@@ -582,7 +598,7 @@
 			{#if product.allergensMayContain}
 				<div class="section">
 					<h2 class="section-title">Kann enthalten</h2>
-					<p class="section-text">{product.allergensMayContain}</p>
+					<p class="ingredient-text">{product.allergensMayContain}</p>
 				</div>
 			{/if}
 
@@ -767,7 +783,7 @@
 								</button>
 								<p class="diy-hint">Speichere zuerst deine Liste, um DIY-Zutaten hinzuzufügen.</p>
 							{/if}
-							<button class="btn-diy-recipe" disabled title="Bald verfügbar">
+							<button class="btn-diy-recipe" onclick={() => goto(`/rezepte/diy/${recipe.id}`)}>
 								Zum Rezept
 							</button>
 						</div>
@@ -802,7 +818,7 @@
 	</div>
 
 	<div class="tab-bar-wrapper">
-		<div class="tab-bar" role="tablist">
+		<div class="tab-bar" class:tab-bar-single={tabsC.length === 1} role="tablist">
 			{#each tabsC as tab}
 				<button
 					class="tab"
@@ -1035,6 +1051,16 @@
 		color: var(--color-primary);
 	}
 
+	.product-meta {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		margin-top: 4px;
+		font-size: 0.85rem;
+		color: var(--color-text-light);
+	}
+
+
 	.btn-replace-main {
 		padding: 10px 20px;
 		border-radius: 24px;
@@ -1064,6 +1090,10 @@
 
 	.tab-bar::-webkit-scrollbar { display: none; }
 
+	.tab-bar-single {
+		justify-content: center;
+	}
+
 	.tab {
 		flex-shrink: 0;
 		padding: 10px 14px;
@@ -1086,39 +1116,6 @@
 		padding-bottom: 40px;
 	}
 
-	/* ── Badges ───────────────────────────────────────────────────────────── */
-	.badges-row {
-		display: flex;
-		gap: 8px;
-		overflow-x: auto;
-		scrollbar-width: none;
-		padding: 12px 16px;
-	}
-
-	.badges-row::-webkit-scrollbar { display: none; }
-
-	.badge {
-		display: inline-flex;
-		align-items: center;
-		gap: 5px;
-		padding: 5px 12px;
-		border-radius: 20px;
-		font-size: 0.8125rem;
-		font-weight: 500;
-		white-space: nowrap;
-		flex-shrink: 0;
-	}
-
-	.badge-green {
-		background: var(--color-primary-light);
-		color: var(--color-primary);
-	}
-
-	.badge-gray {
-		background: #F3F4F6;
-		color: var(--color-text-light);
-	}
-
 	/* ── Sections ─────────────────────────────────────────────────────────── */
 	.section {
 		padding: 16px 16px 0;
@@ -1133,10 +1130,36 @@
 		color: var(--color-text);
 	}
 
-	.section-text {
-		font-size: 0.9375rem;
-		color: var(--color-text-light);
+	.ingredient-text {
+		font-size: 0.95rem;
 		line-height: 1.6;
+		color: var(--color-text);
+		margin: 0;
+	}
+
+	.product-attributes {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 16px;
+		margin-top: 20px;
+		margin-bottom: 24px;
+		padding-bottom: 0;
+	}
+
+	.attribute-item {
+		font-size: 0.9rem;
+		color: var(--color-text-light);
+		font-weight: 500;
+	}
+
+	.attribute-check {
+		color: var(--color-primary);
+		margin-right: 4px;
+		font-size: 0.85rem;
+	}
+
+	.attribute-muted {
+		color: var(--color-text-light);
 	}
 
 	/* ── Tab placeholders ─────────────────────────────────────────────────── */

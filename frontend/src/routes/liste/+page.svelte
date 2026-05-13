@@ -777,7 +777,15 @@ if (matches.length > 0) {
 								<div class="item-left">
 									<span class="checkbox-circle"></span>
 									<div class="item-info">
-										{#if result.type === "C"}
+										{#if result.type === "C" && result.suggestedProduct}
+											<span class="item-name"
+												>{result.suggestedProduct
+													.name}</span
+											>
+											<span class="item-plantified"
+												>{result.diyGroupLabel || `Plantified ${result.displayName}`}</span
+											>
+										{:else if result.type === "C"}
 											<span class="item-name"
 												>{result.displayName}</span
 											>
@@ -792,6 +800,9 @@ if (matches.length > 0) {
 											<span class="item-plantified"
 												>{result.diyGroupLabel || `Plantified ${result.displayName}`}</span
 											>
+										{:else if result.genericFood && result.variantNote}
+											<span class="item-name">{result.genericFood.name}</span>
+											<span class="item-plantified">{result.variantNote}</span>
 										{:else if result.fallbackDiyRecipeId}
 											<span class="item-name">{result.displayName}</span>
 											<span class="item-diy-fallback">
@@ -1073,7 +1084,7 @@ if (matches.length > 0) {
 						</div>
 						<p class="impact-card-text">So viel CO₂ sparst du durch diese Einkaufsliste</p>
 					</div>
-					<p class="impact-pct">{impactData.co2.pct}%</p>
+					<p class="impact-pct" class:impact-pct-negative={impactData.co2.pct < 0} class:impact-pct-neutral={impactData.co2.pct === 0}>{impactData.co2.pct}%</p>
 					<p class="impact-compare">{impactData.co2.compare}</p>
 				</div>
 
@@ -1085,7 +1096,7 @@ if (matches.length > 0) {
 						</div>
 						<p class="impact-card-text">So viel Wasser sparst du durch diese Einkaufsliste</p>
 					</div>
-					<p class="impact-pct">{impactData.water.pct}%</p>
+					<p class="impact-pct" class:impact-pct-negative={impactData.water.pct < 0} class:impact-pct-neutral={impactData.water.pct === 0}>{impactData.water.pct}%</p>
 					<p class="impact-compare">{impactData.water.compare}</p>
 				</div>
 
@@ -1097,7 +1108,7 @@ if (matches.length > 0) {
 						</div>
 						<p class="impact-card-text">So viel Land sparst du durch diese Einkaufsliste</p>
 					</div>
-					<p class="impact-pct">{impactData.land.pct}%</p>
+					<p class="impact-pct" class:impact-pct-negative={impactData.land.pct < 0} class:impact-pct-neutral={impactData.land.pct === 0}>{impactData.land.pct}%</p>
 					<p class="impact-compare">{impactData.land.compare}</p>
 				</div>
 			</div>
@@ -1265,7 +1276,7 @@ if (matches.length > 0) {
 						d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"
 					/>
 				</svg>
-				Plantify Me
+				Plantify-Me
 			</button>
 		{/if}
 
@@ -2604,6 +2615,14 @@ if (matches.length > 0) {
 		color: var(--color-primary);
 		line-height: 1;
 		margin-bottom: 6px;
+	}
+
+	.impact-pct-negative {
+		color: #DC2626;
+	}
+
+	.impact-pct-neutral {
+		color: var(--color-text-light);
 	}
 
 	.impact-compare {

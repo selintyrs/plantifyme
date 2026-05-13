@@ -159,7 +159,7 @@
 					</svg>
 				</div>
 				<div class="speech-bubble">
-					Hey, ich bin dein Plantify Coach. Was möchtest du wissen?
+					Hey, ich bin dein Plantify-Me Coach. Was möchtest du wissen?
 				</div>
 			</div>
 

@@ -493,13 +493,70 @@ class PlantifyMatchServiceTest {
     // ── 5. Type C item path ────────────────────────────────────────────────
 
     @Nested
-    @DisplayName("Type C path")
+    @DisplayName("Type C path (3-Stufen-Kaskade)")
     class TypeC {
 
         @Test
-        @DisplayName("Type C → generic-food by frontendDictionaryId, supermarket repo never touched")
-        void typeCDirectLookup() {
+        @DisplayName("Stufe 1: broader-SP-Hit (subcategory-agnostisch) → suggestedProduct gesetzt, GF-Repo nie aufgerufen")
+        void stage1SupermarketHit() {
+            SupermarketProduct sp = product("p1", 4.50, null, null, null);
+            when(supermarketProductRepository.findByMatchingDisplayNameAndSupermarket("Reis", "Migros"))
+                    .thenReturn(List.of(sp));
+
+            MatchResult r = onlyResult(service.match(
+                    request("Migros", prefs(List.of(), List.of()),
+                            item("1", "Reis", "C", "", "fd-reis"))
+            ));
+
+            assertThat(r.getType()).isEqualTo("C");
+            assertThat(r.getSuggestedProduct()).isSameAs(sp);
+            assertThat(r.getGenericFood()).isNull();
+            verify(genericFoodRepository, never()).findByFrontendDictionaryId(any());
+            verify(genericFoodRepository, never()).findByName(any());
+            verify(diyRecipeRepository, never()).findByMatchingDisplayName(any());
+        }
+
+        @Test
+        @DisplayName("Stufe 1: Allergen-Filter entfernt SP-Kandidat → Fallback auf Stufe 2")
+        void stage1AllergenFilteredFallsToStage2() {
+            SupermarketProduct allergenic = product("p1", 4.50, null, "Gluten", null);
             GenericFood gf = genericFood("gf1");
+            when(supermarketProductRepository.findByMatchingDisplayNameAndSupermarket("Reis", "Migros"))
+                    .thenReturn(List.of(allergenic));
+            when(genericFoodRepository.findByFrontendDictionaryId("fd-reis"))
+                    .thenReturn(Optional.of(gf));
+
+            MatchResult r = onlyResult(service.match(
+                    request("Migros", prefs(List.of("Gluten"), List.of()),
+                            item("1", "Reis", "C", "", "fd-reis"))
+            ));
+
+            assertThat(r.getSuggestedProduct()).isNull();
+            assertThat(r.getGenericFood()).isSameAs(gf);
+        }
+
+        @Test
+        @DisplayName("Stufe 1: nimmt erstes Element bei mehreren Kandidaten (keine Sortierung)")
+        void stage1TakesFirstCandidate() {
+            SupermarketProduct first = product("p-first", 4.50, null, null, null);
+            SupermarketProduct second = product("p-second", 3.20, null, null, null);
+            when(supermarketProductRepository.findByMatchingDisplayNameAndSupermarket("Reis", "Migros"))
+                    .thenReturn(List.of(first, second));
+
+            MatchResult r = onlyResult(service.match(
+                    request("Migros", prefs(List.of(), List.of()),
+                            item("1", "Reis", "C", "", "fd-reis"))
+            ));
+
+            assertThat(r.getSuggestedProduct()).isSameAs(first);
+        }
+
+        @Test
+        @DisplayName("Stufe 2: SP leer + FD-ID-Hit → genericFood via FD-ID")
+        void stage2FrontendDictionaryIdHit() {
+            GenericFood gf = genericFood("gf1");
+            when(supermarketProductRepository.findByMatchingDisplayNameAndSupermarket(any(), any()))
+                    .thenReturn(List.of());
             when(genericFoodRepository.findByFrontendDictionaryId("fd-99"))
                     .thenReturn(Optional.of(gf));
 
@@ -509,16 +566,38 @@ class PlantifyMatchServiceTest {
 
             assertThat(r.getType()).isEqualTo("C");
             assertThat(r.getGenericFood()).isSameAs(gf);
-            verify(supermarketProductRepository, never())
-                    .findByMatchingKeyAndSupermarket(any(), any(), any());
-            verify(diyRecipeRepository, never()).findByMatchingDisplayName(any());
+            assertThat(r.getSuggestedProduct()).isNull();
+            verify(genericFoodRepository, never()).findByName(any());
         }
 
         @Test
-        @DisplayName("Type C with unknown frontendDictionaryId → type C, genericFood null")
-        void typeCUnknownId() {
+        @DisplayName("Stufe 3: SP leer + FD-ID leer + findByName-Hit → genericFood via Name-Fallback")
+        void stage3NameFallback() {
+            GenericFood gf = genericFood("gf-by-name");
+            when(supermarketProductRepository.findByMatchingDisplayNameAndSupermarket(any(), any()))
+                    .thenReturn(List.of());
             when(genericFoodRepository.findByFrontendDictionaryId(any()))
                     .thenReturn(Optional.empty());
+            when(genericFoodRepository.findByName("Süssungsmittel"))
+                    .thenReturn(List.of(gf));
+
+            MatchResult r = onlyResult(service.match(
+                    request("Migros", null, item("1", "Süssungsmittel", "C", "", "fd-x"))
+            ));
+
+            assertThat(r.getGenericFood()).isSameAs(gf);
+            assertThat(r.getSuggestedProduct()).isNull();
+        }
+
+        @Test
+        @DisplayName("Alle drei Stufen leer → kein Match (genericFood + suggestedProduct null)")
+        void allStagesEmpty() {
+            when(supermarketProductRepository.findByMatchingDisplayNameAndSupermarket(any(), any()))
+                    .thenReturn(List.of());
+            when(genericFoodRepository.findByFrontendDictionaryId(any()))
+                    .thenReturn(Optional.empty());
+            when(genericFoodRepository.findByName(any()))
+                    .thenReturn(List.of());
 
             MatchResult r = onlyResult(service.match(
                     request("Migros", null, item("1", "Was?", "C", "", "fd-x"))
@@ -526,19 +605,9 @@ class PlantifyMatchServiceTest {
 
             assertThat(r.getType()).isEqualTo("C");
             assertThat(r.getGenericFood()).isNull();
-        }
-
-        @Test
-        @DisplayName("Type C does NOT trigger DIY-by-name or generic findByName fallbacks")
-        void typeCNoFallbackChain() {
-            when(genericFoodRepository.findByFrontendDictionaryId(any()))
-                    .thenReturn(Optional.empty());
-
-            service.match(request("Migros", null,
-                    item("1", "Apfel", "C", "", "fd-99")));
-
+            assertThat(r.getSuggestedProduct()).isNull();
+            // DIY-Pfad gilt weiterhin nicht für Type C
             verify(diyRecipeRepository, never()).findByMatchingDisplayName(any());
-            verify(genericFoodRepository, never()).findByName(any());
         }
     }
 

@@ -153,7 +153,7 @@
 						<path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>
 					</svg>
 				</div>
-				<h1>Willkommen bei Plantify!</h1>
+				<h1>Willkommen bei Plantify-Me!</h1>
 				<p class="hero-sub">
 					Wir stellen dir ein paar Fragen, damit wir dir die besten Empfehlungen geben können.
 					Dauert nur 2 Minuten.

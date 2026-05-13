@@ -168,7 +168,7 @@
 </script>
 
 <svelte:head>
-	<title>Gespeicherte Listen – Plantify</title>
+	<title>Gespeicherte Listen – Plantify-Me</title>
 </svelte:head>
 
 <div class="page">

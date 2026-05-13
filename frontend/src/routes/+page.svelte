@@ -130,6 +130,16 @@
 		return firstName ? `${greet}, ${firstName}` : greet;
 	});
 
+	let memberSince = $derived.by(() => {
+		const createdAt = $currentUser?.createdAt;
+		if (!createdAt) return '';
+		const date = new Date(createdAt);
+		if (isNaN(date.getTime())) return '';
+		const monate = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+		                'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+		return `${monate[date.getMonth()]} ${date.getFullYear()}`;
+	});
+
 	let totalAnimals = $derived.by(() => {
 		const a = impactTotal?.animals;
 		if (!a) return 0;
@@ -225,17 +235,6 @@
 </script>
 
 <div class="page">
-	<!-- 1. Top Header ─────────────────────────────────────────────────────── -->
-	<div class="top-bar">
-		<span class="top-title">Plantify</span>
-		<button class="icon-btn icon-btn-disabled" aria-label="Benachrichtigungen" disabled>
-			<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-				<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
-				<path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
-			</svg>
-		</button>
-	</div>
-
 	<!-- 2. Greeting ───────────────────────────────────────────────────────── -->
 	<div class="hello">
 		<h1 class="hello-title">{greeting}</h1>
@@ -261,7 +260,6 @@
 	{#if discoverItems.length > 0}
 		<section class="section">
 			<h2 class="section-title">Entdecke heute</h2>
-			<p class="section-sub">Pflanzliche Alternativen, die du kennenlernen solltest</p>
 			<div class="carousel">
 				{#each discoverItems as entry (entry.id)}
 					{@const info = discoverImages[entry.displayName]}
@@ -278,7 +276,6 @@
 						{/if}
 						<div class="discover-text">
 							<span class="discover-name">{entry.displayName}</span>
-							<span class="discover-sub">Pflanzliche Alternativen</span>
 						</div>
 					</button>
 				{/each}
@@ -353,7 +350,7 @@
 					<path d="M9 18h6"/><path d="M10 22h4"/>
 					<path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/>
 				</svg>
-				<span class="quick-label">Plantified werden</span>
+				<span class="quick-label">Info</span>
 			</button>
 			<button class="quick-card" onclick={() => goto('/shoppinglists')}>
 				<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -368,7 +365,7 @@
 	<section class="section impact-section">
 		<div class="impact-header">
 			<h2 class="section-title">Dein Impact</h2>
-			<p class="section-sub">Seit du Plantify nutzt</p>
+			<p class="section-sub">{memberSince ? `Mitglied seit ${memberSince}` : 'Seit du Plantify-Me nutzt'}</p>
 		</div>
 
 		{#if !impactTotal || (totalAnimals === 0 && (impactTotal.co2TotalKg ?? 0) === 0)}
@@ -459,51 +456,6 @@
 <style>
 	.page {
 		padding-bottom: 100px;
-	}
-
-	.top-bar {
-		position: sticky;
-		top: 0;
-		z-index: 10;
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 16px;
-		background: var(--color-bg, white);
-	}
-
-	.top-title {
-		font-size: 1.25rem;
-		font-weight: 800;
-		color: var(--color-primary);
-		letter-spacing: -0.01em;
-	}
-
-	.icon-btn {
-		width: 40px;
-		height: 40px;
-		border: none;
-		background: transparent;
-		color: var(--color-text);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		cursor: pointer;
-		border-radius: 50%;
-		padding: 0;
-	}
-
-	.icon-btn:hover {
-		background: var(--color-border);
-	}
-
-	.icon-btn-disabled {
-		opacity: 0.45;
-		cursor: default;
-	}
-
-	.icon-btn-disabled:hover {
-		background: transparent;
 	}
 
 	/* ── Greeting ─────────────────────────────────────────────────────── */

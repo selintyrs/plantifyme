@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class PlantifyMatchService {
@@ -40,8 +41,27 @@ public class PlantifyMatchService {
             result.setType(item.getType());
 
             if ("C".equals(item.getType())) {
-                genericFoodRepository.findByFrontendDictionaryId(item.getFrontendDictionaryId())
-                        .ifPresent(result::setGenericFood);
+                // Stufe 1: Supermarkt-Produkt mit gepflegtem matching_key (subcategory-agnostisch).
+                // Type-C-Items haben strukturell nur subcategory-spezifische Einträge
+                // (z.B. Reis → Basmati/Risotto), daher broader-Match ohne subcategory-Filter.
+                List<SupermarketProduct> typeCsupermarket = supermarketProductRepository
+                        .findByMatchingDisplayNameAndSupermarket(item.getDisplayName(), request.getSupermarket());
+                typeCsupermarket = filterAllergens(typeCsupermarket, request.getPreferences());
+                if (!typeCsupermarket.isEmpty()) {
+                    result.setSuggestedProduct(typeCsupermarket.get(0));
+                    result.setMatchLevel("specific");
+                } else {
+                    // Stufe 2: GenericFood per frontendDictionaryId (Original-Pfad)
+                    Optional<GenericFood> gfById = genericFoodRepository
+                            .findByFrontendDictionaryId(item.getFrontendDictionaryId());
+                    if (gfById.isPresent()) {
+                        result.setGenericFood(gfById.get());
+                    } else {
+                        // Stufe 3: GenericFood per Name als Daten-Inkonsistenz-Fallback
+                        List<GenericFood> gfByName = genericFoodRepository.findByName(item.getDisplayName());
+                        if (!gfByName.isEmpty()) result.setGenericFood(gfByName.get(0));
+                    }
+                }
             } else {
                 String subcategory = item.getSubcategory() != null ? item.getSubcategory() : "";
 
@@ -75,6 +95,19 @@ public class PlantifyMatchService {
                         // Type stays original — match status is expressed via genericFood field.
                         List<GenericFood> nameMatches = genericFoodRepository.findByName(item.getDisplayName());
                         if (!nameMatches.isEmpty()) result.setGenericFood(nameMatches.get(0));
+
+                        // Variant-Fallback für Tiefkühlobst-Familie:
+                        // Wenn Item Tiefkühlobst ist und kein direkter GenericFood-Treffer,
+                        // mappe Subcategory (z.B. "Heidelbeeren") oder Default "Erdbeeren"
+                        // auf den passenden Frisch-Obst-GenericFood.
+                        if (result.getGenericFood() == null && "Tiefkühlobst".equals(item.getDisplayName())) {
+                            String variant = subcategory.isBlank() ? "Erdbeeren" : subcategory;
+                            List<GenericFood> variantMatches = genericFoodRepository.findByName(variant);
+                            if (!variantMatches.isEmpty()) {
+                                result.setGenericFood(variantMatches.get(0));
+                                result.setVariantNote("Tiefkühl-" + variant);
+                            }
+                        }
                     }
                 }
             }

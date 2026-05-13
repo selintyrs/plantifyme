@@ -20,4 +20,7 @@ public interface SupermarketProductRepository extends MongoRepository<Supermarke
 
     @Query("{'matching_keys': {$elemMatch: {'displayName': ?0}}, 'image_url': {$ne: null, $ne: ''}}")
     List<SupermarketProduct> findByMatchingDisplayNameWithImage(String displayName);
+
+    @Query("{'matching_keys': {$elemMatch: {'displayName': ?0}}, 'supermarket': ?1}")
+    List<SupermarketProduct> findByMatchingDisplayNameAndSupermarket(String displayName, String supermarket);
 }

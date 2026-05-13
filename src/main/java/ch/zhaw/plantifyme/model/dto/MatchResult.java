@@ -18,4 +18,5 @@ public class MatchResult {
     private String fallbackDiyRecipeId;
     private String fallbackDiyRecipeTitle;
     private String matchLevel; // "specific" | "broader" | null (no match or non-supermarket result)
+    private String variantNote; // optional Hinweis (z.B. "Tiefkühl-Erdbeeren") wenn Match über Variant-Fallback erfolgt
 }

@@ -140,7 +140,7 @@
 			<div class="icon-btn-placeholder"></div>
 		{/if}
 
-		<h1 class="top-title">Profil</h1>
+		<div></div>
 
 		{#if editMode}
 			<button class="icon-btn icon-btn-primary" onclick={saveChanges} disabled={isSaving || !editValues.firstName.trim()} aria-label="Speichern">
@@ -360,7 +360,7 @@
 			</div>
 		</div>
 
-		<p class="version">Plantify v0.3</p>
+		<p class="version">Plantify-Me v0.3</p>
 	{/if}
 </div>
 
@@ -385,13 +385,6 @@
 		background: var(--color-bg);
 	}
 
-	.top-title {
-		font-size: 1.5rem;
-		font-weight: 700;
-		color: var(--color-text);
-		text-align: center;
-		margin: 0;
-	}
 
 	.icon-btn {
 		width: 36px;

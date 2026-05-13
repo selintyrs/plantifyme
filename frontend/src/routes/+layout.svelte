@@ -93,11 +93,31 @@
 		!$page.url.pathname.startsWith('/onboarding') &&
 		!isPublicPath($page.url.pathname)
 	);
+
+	const TOP_BAR_ROOTS = ['/', '/liste', '/shoppinglists', '/rezepte', '/info', '/profil'];
+
+	function showTopBarFor(path) {
+		if (isPublicPath(path)) return false;
+		if (path.startsWith('/onboarding')) return false;
+		if (path.startsWith('/products')) return false;
+		// Tab-Roots OK, aber Detail-Sub-Routen mit eigenem Back-Button NICHT
+		if (path.startsWith('/rezepte/')) return false;
+		if (path.startsWith('/info/')) return false;
+		return TOP_BAR_ROOTS.includes(path);
+	}
+
+	let showTopBar = $derived(showTopBarFor($page.url.pathname));
 </script>
 
 <div id="app-shell">
 	{#if initialized}
-		<main>
+		{#if showTopBar}
+			<header class="top-bar-global">
+				<span class="top-bar-brand">Plantify-Me</span>
+			</header>
+		{/if}
+
+		<main class:has-top-bar={showTopBar}>
 			{@render children()}
 		</main>
 
@@ -124,6 +144,29 @@
 </div>
 
 <style>
+	.top-bar-global {
+		position: sticky;
+		top: 0;
+		z-index: 50;
+		height: var(--top-bar-height);
+		display: flex;
+		align-items: center;
+		padding: 0 16px;
+		background: var(--color-bg);
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.top-bar-brand {
+		font-size: 1.25rem;
+		font-weight: 800;
+		color: var(--color-primary);
+		letter-spacing: -0.01em;
+	}
+
+	main.has-top-bar {
+		padding-top: 0;
+	}
+
 	.bottom-nav {
 		position: fixed;
 		bottom: 0;
