@@ -105,7 +105,7 @@
 		isGenerating = true;
 		try {
 			const body = {
-				title: baseRecipe?.title || storeData?.description || 'Rezept',
+				title: baseRecipe?.title || null,
 				description: storeData?.description || null,
 				customIngredients: storeData?.customIngredients || [],
 				preferences: {

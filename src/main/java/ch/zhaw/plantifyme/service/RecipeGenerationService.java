@@ -12,6 +12,8 @@ import ch.zhaw.plantifyme.repository.SavedRecipeRepository;
 import ch.zhaw.plantifyme.util.AuthUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
 
@@ -23,6 +25,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class RecipeGenerationService {
+
+    private static final Logger log = LoggerFactory.getLogger(RecipeGenerationService.class);
 
     /** Package-private for AiComparisonTest re-use; not part of public API. */
     static final String SYSTEM_PROMPT = """
@@ -212,8 +216,18 @@ public class RecipeGenerationService {
         recipe.setUserId(AuthUtil.requireCurrentUserId());
         recipe.setAiGenerated(true);
         recipe.setSaved(false);
-        recipe.setTitle(json.path("title").asText());
-        if (request.getTitle() != null && !request.getTitle().isBlank()) {
+        String aiTitle = json.path("title").asText();
+        if (aiTitle == null || aiTitle.isBlank()) {
+            log.warn("LLM lieferte keinen Titel im JSON-Response (request.title={}, baseRecipeId={}). "
+                    + "Recipe wird mit leerem Titel gespeichert.", request.getTitle(), request.getBaseRecipeId());
+        }
+        recipe.setTitle(aiTitle);
+        // Override des KI-Titels NUR wenn ein Base-Recipe-Anchor mitgeschickt wurde —
+        // dann soll der Original-Titel des Grundrezepts erhalten bleiben
+        // (siehe SYSTEM_PROMPT "BEHALTE den Originaltitel bei").
+        if (request.getBaseRecipeId() != null
+                && request.getTitle() != null
+                && !request.getTitle().isBlank()) {
             recipe.setTitle(request.getTitle());
         }
         recipe.setDescription(json.path("description").asText(null));
