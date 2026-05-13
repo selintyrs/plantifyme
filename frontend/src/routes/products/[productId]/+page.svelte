@@ -21,9 +21,9 @@
 	let replacedProductName = $state(null);
 
 	const filters = [
-		{ id: 'cheaper',   label: 'Günstiger' },
-		{ id: 'healthier', label: 'Mehr Protein' },
-		{ id: 'lowcal',    label: 'Weniger Kalorien' }
+		{ id: 'cheaper',   label: 'Günstiger',        icon: '/images/onboarding/cheaper.png' },
+		{ id: 'healthier', label: 'Mehr Protein',     icon: '/images/onboarding/highProtein.png' },
+		{ id: 'lowcal',    label: 'Weniger Kalorien', icon: '/images/onboarding/lowCalorie.png' }
 	];
 
 	let replacingId = $derived($page.url.searchParams.get('replacing'));
@@ -632,7 +632,8 @@
 						class:filter-pill-active={activeFilter === f.id}
 						onclick={() => toggleFilter(f.id)}
 					>
-						{f.label}
+						<img class="filter-icon" src={f.icon} alt="" aria-hidden="true" />
+						<span>{f.label}</span>
 					</button>
 				{/each}
 			</div>
@@ -1239,20 +1240,35 @@
 
 	.filter-pill {
 		flex-shrink: 0;
-		padding: 7px 16px;
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		padding: 6px 14px;
 		border-radius: 20px;
 		font-size: 0.875rem;
 		font-weight: 500;
-		border: 1.5px solid var(--color-border);
+		border: 1.5px solid var(--color-primary);
 		background: #ffffff;
-		color: var(--color-text);
+		color: var(--color-primary);
 		transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 	}
 
 	.filter-pill-active {
-		background: #2D7D46;
+		background: var(--color-primary);
 		color: #ffffff;
-		border-color: #2D7D46;
+		border-color: var(--color-primary);
+	}
+
+	.filter-icon {
+		width: auto;
+		height: 18px;
+		object-fit: contain;
+		flex-shrink: 0;
+		transition: filter 0.15s ease;
+	}
+
+	.filter-pill-active .filter-icon {
+		filter: brightness(0) invert(1);
 	}
 
 	.no-alternatives {

@@ -107,6 +107,15 @@
 
 	let impactData = $derived(computeImpact($matchResults, $shoppingListStore));
 
+	// "Sonstiges" gehört ans Ende — andere Kategorien behalten ihre Insertion-Reihenfolge.
+	function sortCategoryEntries(grouping) {
+		return Object.entries(grouping).sort(([a], [b]) => {
+			if (a === 'Sonstiges') return 1;
+			if (b === 'Sonstiges') return -1;
+			return 0;
+		});
+	}
+
 	function computeImpact(matchResults, shoppingList) {
 		const animals = { cow: 0, pig: 0, chicken: 0, fish: 0 };
 		let totalCo2 = 0, co2PctSum = 0, co2Count = 0;
@@ -805,7 +814,7 @@ if (matches.length > 0) {
 			<!-- ── Veganized View ─────────────────────────────────────────────────── -->
 		{:else if $isVeganized}
 			<div class="item-list">
-				{#each Object.entries(matchGrouped) as [category, results]}
+				{#each sortCategoryEntries(matchGrouped) as [category, results]}
 					<div class="category-section">
 						<div class="category-header">
 							<svg
@@ -1176,7 +1185,7 @@ if (matches.length > 0) {
 			<!-- ── Normal (pre-match) View ────────────────────────────────────────── -->
 		{:else}
 			<div class="item-list">
-				{#each Object.entries(listGrouped) as [category, items]}
+				{#each sortCategoryEntries(listGrouped) as [category, items]}
 					<div class="category-section">
 						<div class="category-header">
 							<svg
