@@ -1,0 +1,108 @@
+{
+  "title": "Brownies",
+  "description": "Saftige und schokoladige Brownies mit schwarzen Bohnen als geheimer Zutat. Unglaublich fudgy und niemand merkt, dass sie gesund sind.",
+  "category": "Desserts & Süsses",
+  "prepTimeMin": 45,
+  "difficulty": "easy",
+  "servings": 8,
+  "ingredients": [
+    {
+      "name": "Schwarze Bohnen (abgespült)",
+      "amount": 400,
+      "unit": "g",
+      "type": "B",
+      "matchingDisplayName": "Hülsenfrüchte",
+      "matchingSubcategory": "Schwarze Bohnen"
+    },
+    {
+      "name": "Haferflocken",
+      "amount": 80,
+      "unit": "g",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Kakaopulver (ungesüsst)",
+      "amount": 60,
+      "unit": "g",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Ahornsirup",
+      "amount": 120,
+      "unit": "ml",
+      "type": "B",
+      "matchingDisplayName": "Süssungsmittel",
+      "matchingSubcategory": "Ahornsirup"
+    },
+    {
+      "name": "Pflanzenmilch (ungesüsst)",
+      "amount": 60,
+      "unit": "ml",
+      "type": "B",
+      "matchingDisplayName": "Milch",
+      "matchingSubcategory": "Hafer"
+    },
+    {
+      "name": "Kokosöl (geschmolzen)",
+      "amount": 3,
+      "unit": "EL",
+      "type": "B",
+      "matchingDisplayName": "Öl",
+      "matchingSubcategory": "Kokosöl"
+    },
+    {
+      "name": "Vanilleextrakt",
+      "amount": 1,
+      "unit": "TL",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Backpulver",
+      "amount": 1,
+      "unit": "TL",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Dunkle Schokolade (gehackt)",
+      "amount": 100,
+      "unit": "g",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Salz",
+      "amount": 1,
+      "unit": "Prise",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    }
+  ],
+  "instructions": [
+    { "step": 1, "text": "Ofen auf 180°C vorheizen. Eine 20x20cm Backform mit Backpapier auslegen." },
+    { "step": 2, "text": "Schwarze Bohnen gründlich abspülen und abtropfen lassen. Haferflocken in einem Mixer zu Mehl mahlen." },
+    { "step": 3, "text": "Bohnen, Hafermehl, Kakaopulver, Ahornsirup, Pflanzenmilch, geschmolzenes Kokosöl und Vanilleextrakt in einem Mixer pürieren bis eine glatte Masse entsteht." },
+    { "step": 4, "text": "Backpulver und Salz unterrühren. Die gehackte Schokolade vorsichtig unterheben." },
+    { "step": 5, "text": "Teig in die vorbereitete Form geben und gleichmässig verstreichen." },
+    { "step": 6, "text": "25-30 Minuten backen, bis ein Zahnstocher noch leicht feucht herauskommt. Nicht überbacken!" },
+    { "step": 7, "text": "Vollständig abkühlen lassen, bevor die Brownies geschnitten werden. In Quadrate schneiden und servieren." }
+  ],
+  "totalNutritionPerServing": {
+    "kcal": 220,
+    "fat": 8.0,
+    "saturatedFat": 5.0,
+    "carbs": 35.0,
+    "sugar": 18.0,
+    "protein": 6.0,
+    "salt": 0.2
+  }
+}

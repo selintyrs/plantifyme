@@ -1,0 +1,108 @@
+{
+  "title": "Thai Curry",
+  "description": "Aromatisches Thai Curry mit cremiger Kokosmilch, knackigem Gemüse und würzigem Tofu. Ein Geschmackserlebnis, das direkt nach Thailand entführt.",
+  "category": "Asiatische Küche",
+  "prepTimeMin": 25,
+  "difficulty": "easy",
+  "servings": 2,
+  "ingredients": [
+    {
+      "name": "Jasminreis",
+      "amount": 150,
+      "unit": "g",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Vollfette Kokosmilch",
+      "amount": 400,
+      "unit": "ml",
+      "type": "B",
+      "matchingDisplayName": "Milch",
+      "matchingSubcategory": "Kokos"
+    },
+    {
+      "name": "Naturtofu",
+      "amount": 200,
+      "unit": "g",
+      "type": "B",
+      "matchingDisplayName": "Tofu",
+      "matchingSubcategory": "Nature"
+    },
+    {
+      "name": "Paprika",
+      "amount": 1,
+      "unit": "Stk",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Zucchetti",
+      "amount": 1,
+      "unit": "Stk",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Rote Currypaste",
+      "amount": 2,
+      "unit": "EL",
+      "type": "B",
+      "matchingDisplayName": "Currysauce",
+      "matchingSubcategory": "Paste"
+    },
+    {
+      "name": "Sojasauce",
+      "amount": 2,
+      "unit": "EL",
+      "type": "B",
+      "matchingDisplayName": "Sojasauce",
+      "matchingSubcategory": ""
+    },
+    {
+      "name": "Ahornsirup",
+      "amount": 1,
+      "unit": "EL",
+      "type": "B",
+      "matchingDisplayName": "Süssungsmittel",
+      "matchingSubcategory": "Ahornsirup"
+    },
+    {
+      "name": "Frisches Basilikum",
+      "amount": 10,
+      "unit": "g",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Rapsöl",
+      "amount": 2,
+      "unit": "EL",
+      "type": "B",
+      "matchingDisplayName": "Öl",
+      "matchingSubcategory": "Rapsöl"
+    }
+  ],
+  "instructions": [
+    { "step": 1, "text": "Jasminreis nach Packungsanweisung kochen." },
+    { "step": 2, "text": "Tofu in Würfel schneiden. Paprika in Streifen und Zucchetti in Scheiben schneiden." },
+    { "step": 3, "text": "Rapsöl in einer grossen Pfanne erhitzen. Tofu darin goldbraun anbraten und herausnehmen." },
+    { "step": 4, "text": "Currypaste in der Pfanne kurz anrösten, dann Kokosmilch dazugiessen." },
+    { "step": 5, "text": "Paprika und Zucchetti hinzufügen und 5 Minuten köcheln lassen." },
+    { "step": 6, "text": "Tofu wieder hinzufügen. Mit Sojasauce und Ahornsirup würzen." },
+    { "step": 7, "text": "Frisches Basilikum unterrühren und mit dem Jasminreis servieren." }
+  ],
+  "totalNutritionPerServing": {
+    "kcal": 520,
+    "fat": 28.0,
+    "saturatedFat": 20.0,
+    "carbs": 58.0,
+    "sugar": 12.0,
+    "protein": 18.0,
+    "salt": 2.2
+  }
+}

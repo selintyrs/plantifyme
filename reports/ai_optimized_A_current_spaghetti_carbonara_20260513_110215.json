@@ -1,0 +1,108 @@
+{
+  "title": "Spaghetti Carbonara",
+  "description": "Cremige Pasta mit würzigem Räuchertofu und einer samtigen Cashew-Sauce. Ein pflanzlicher Klassiker, der dem Original in nichts nachsteht.",
+  "category": "Pasta & Pizza",
+  "prepTimeMin": 25,
+  "difficulty": "medium",
+  "servings": 2,
+  "ingredients": [
+    {
+      "name": "Spaghetti",
+      "amount": 200,
+      "unit": "g",
+      "type": "B",
+      "matchingDisplayName": "Spaghetti",
+      "matchingSubcategory": ""
+    },
+    {
+      "name": "Räuchertofu",
+      "amount": 150,
+      "unit": "g",
+      "type": "B",
+      "matchingDisplayName": "Tofu",
+      "matchingSubcategory": "Geräuchert"
+    },
+    {
+      "name": "Cashews",
+      "amount": 80,
+      "unit": "g",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Pflanzenmilch",
+      "amount": 150,
+      "unit": "ml",
+      "type": "B",
+      "matchingDisplayName": "Milch",
+      "matchingSubcategory": "Soja"
+    },
+    {
+      "name": "Hefeflocken",
+      "amount": 3,
+      "unit": "EL",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Knoblauch",
+      "amount": 2,
+      "unit": "Stk",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Kurkuma",
+      "amount": 1,
+      "unit": "TL",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Olivenöl",
+      "amount": 2,
+      "unit": "EL",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Salz",
+      "amount": 1,
+      "unit": "TL",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Schwarzer Pfeffer",
+      "amount": 1,
+      "unit": "Prise",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    }
+  ],
+  "instructions": [
+    { "step": 1, "text": "Cashews 15 Minuten in heissem Wasser einweichen. Spaghetti nach Packungsanweisung in Salzwasser kochen." },
+    { "step": 2, "text": "Räuchertofu in kleine Würfel schneiden. Knoblauch fein hacken." },
+    { "step": 3, "text": "Eingeweichte Cashews mit Pflanzenmilch, Hefeflocken, Kurkuma, Salz und Pfeffer in einem Mixer zu einer cremigen Sauce pürieren." },
+    { "step": 4, "text": "Olivenöl in einer grossen Pfanne erhitzen. Tofu-Würfel darin 3-4 Minuten goldbraun anbraten." },
+    { "step": 5, "text": "Knoblauch zu den Tofu-Würfeln geben und 1 Minute mitbraten." },
+    { "step": 6, "text": "Abgetropfte Spaghetti zur Pfanne geben. Cashew-Sauce unterrühren und bei niedriger Hitze 2 Minuten schwenken." },
+    { "step": 7, "text": "Mit frisch gemahlenem Pfeffer abschmecken und sofort servieren." }
+  ],
+  "totalNutritionPerServing": {
+    "kcal": 485,
+    "fat": 22.0,
+    "saturatedFat": 4.5,
+    "carbs": 52.0,
+    "sugar": 6.0,
+    "protein": 24.0,
+    "salt": 1.8
+  }
+}

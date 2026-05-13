@@ -1,0 +1,143 @@
+{
+  "title": "Bibimbap",
+  "description": "Koreanische Reisschüssel mit mariniertem Tofu und buntem Gemüse. Ein farbenfrohes und ausgewogenes Gericht mit authentischen Aromen.",
+  "category": "Asiatische Küche",
+  "prepTimeMin": 35,
+  "difficulty": "medium",
+  "servings": 2,
+  "ingredients": [
+    {
+      "name": "Jasminreis",
+      "amount": 150,
+      "unit": "g",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Naturtofu",
+      "amount": 200,
+      "unit": "g",
+      "type": "B",
+      "matchingDisplayName": "Tofu",
+      "matchingSubcategory": "Nature"
+    },
+    {
+      "name": "Karotten",
+      "amount": 150,
+      "unit": "g",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Sojasprossen",
+      "amount": 100,
+      "unit": "g",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Spinat",
+      "amount": 150,
+      "unit": "g",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Champignons",
+      "amount": 150,
+      "unit": "g",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Gurke",
+      "amount": 1,
+      "unit": "Stk",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Sojasauce",
+      "amount": 4,
+      "unit": "EL",
+      "type": "B",
+      "matchingDisplayName": "Sojasauce",
+      "matchingSubcategory": ""
+    },
+    {
+      "name": "Sambal Oelek",
+      "amount": 1,
+      "unit": "TL",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Sesamöl",
+      "amount": 2,
+      "unit": "EL",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Knoblauch",
+      "amount": 2,
+      "unit": "Stk",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Ahornsirup",
+      "amount": 2,
+      "unit": "TL",
+      "type": "B",
+      "matchingDisplayName": "Süssungsmittel",
+      "matchingSubcategory": "Ahornsirup"
+    },
+    {
+      "name": "Sesam",
+      "amount": 2,
+      "unit": "EL",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Rapsöl",
+      "amount": 3,
+      "unit": "EL",
+      "type": "B",
+      "matchingDisplayName": "Öl",
+      "matchingSubcategory": "Rapsöl"
+    }
+  ],
+  "instructions": [
+    { "step": 1, "text": "Jasminreis nach Packungsanleitung kochen und warm halten." },
+    { "step": 2, "text": "Tofu in Würfel schneiden und mit 2 EL Sojasauce, 1 TL Ahornsirup und gehacktem Knoblauch marinieren." },
+    { "step": 3, "text": "Karotten in dünne Streifen schneiden und in 1 EL Rapsöl 3-4 Minuten anbraten. Mit Salz würzen." },
+    { "step": 4, "text": "Champignons in Scheiben schneiden und in derselben Pfanne 4-5 Minuten braten." },
+    { "step": 5, "text": "Spinat kurz blanchieren, ausdrücken und mit 1 EL Sojasauce und 1 EL Sesamöl würzen." },
+    { "step": 6, "text": "Sojasprossen 1-2 Minuten in kochendem Wasser blanchieren und abtropfen lassen." },
+    { "step": 7, "text": "Gurke in dünne Scheiben schneiden und leicht salzen." },
+    { "step": 8, "text": "Marinierten Tofu in 2 EL Rapsöl goldbraun braten." },
+    { "step": 9, "text": "Sauce aus restlicher Sojasauce, Sambal Oelek, restlichem Ahornsirup und Sesamöl mischen." },
+    { "step": 10, "text": "Reis in Schüsseln verteilen, Gemüse und Tofu darauf anrichten. Mit Sesam bestreuen und Sauce servieren." }
+  ],
+  "totalNutritionPerServing": {
+    "kcal": 520,
+    "fat": 22.0,
+    "saturatedFat": 3.5,
+    "carbs": 62.0,
+    "sugar": 12.0,
+    "protein": 24.0,
+    "salt": 2.8
+  }
+}

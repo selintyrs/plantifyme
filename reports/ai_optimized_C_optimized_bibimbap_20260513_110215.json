@@ -1,0 +1,165 @@
+{
+  "title": "Bibimbap",
+  "description": "Koreanische Reisbowl mit mariniertem Tofu, vielen Gemüsesorten und scharfer Gochujang-Sauce.",
+  "category": "Asiatische Küche",
+  "prepTimeMin": 35,
+  "difficulty": "medium",
+  "servings": 2,
+  "ingredients": [
+    {
+      "name": "Jasminreis",
+      "amount": 200.0,
+      "unit": "g",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Naturtofu",
+      "amount": 250.0,
+      "unit": "g",
+      "type": "B",
+      "matchingDisplayName": "Tofu",
+      "matchingSubcategory": "Nature"
+    },
+    {
+      "name": "Karotten",
+      "amount": 2.0,
+      "unit": "Stk",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Sojasprossen",
+      "amount": 100.0,
+      "unit": "g",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Spinat",
+      "amount": 150.0,
+      "unit": "g",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Pilze",
+      "amount": 100.0,
+      "unit": "g",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Gurke",
+      "amount": 0.5,
+      "unit": "Stk",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Sojasauce",
+      "amount": 4.0,
+      "unit": "EL",
+      "type": "B",
+      "matchingDisplayName": "Sojasauce",
+      "matchingSubcategory": ""
+    },
+    {
+      "name": "Sambal Oelek",
+      "amount": 2.0,
+      "unit": "EL",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Sesamöl",
+      "amount": 2.0,
+      "unit": "EL",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Knoblauch",
+      "amount": 2.0,
+      "unit": "Stk",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Ahornsirup",
+      "amount": 1.0,
+      "unit": "EL",
+      "type": "B",
+      "matchingDisplayName": "Süssungsmittel",
+      "matchingSubcategory": "Ahornsirup"
+    },
+    {
+      "name": "Sesam",
+      "amount": 2.0,
+      "unit": "EL",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Rapsöl",
+      "amount": 2.0,
+      "unit": "EL",
+      "type": "B",
+      "matchingDisplayName": "Öl",
+      "matchingSubcategory": "Rapsöl"
+    }
+  ],
+  "instructions": [
+    {
+      "step": 1,
+      "text": "Reis kochen. Tofu in Würfel schneiden, mit 2 EL Sojasauce und 1 EL Sesamöl marinieren und in Rapsöl knusprig braten."
+    },
+    {
+      "step": 2,
+      "text": "Karotten in feine Streifen schneiden und kurz in Sesamöl anbraten."
+    },
+    {
+      "step": 3,
+      "text": "Sojasprossen 1 Minute blanchieren, abschrecken und mit etwas Sesamöl und Salz vermengen."
+    },
+    {
+      "step": 4,
+      "text": "Spinat in kochendes Wasser geben, 30 Sekunden blanchieren, ausdrücken und mit Knoblauch, 1 EL Sojasauce und Sesam würzen."
+    },
+    {
+      "step": 5,
+      "text": "Pilze in Scheiben schneiden und in Rapsöl anbraten."
+    },
+    {
+      "step": 6,
+      "text": "Gurke in dünne Streifen schneiden."
+    },
+    {
+      "step": 7,
+      "text": "Für die Sauce: Sambal Oelek, restliche Sojasauce, Ahornsirup und 1 EL Wasser verrühren."
+    },
+    {
+      "step": 8,
+      "text": "Reis in Schüsseln verteilen. Gemüse, Tofu und Gurke sektorweise anrichten. Sauce darüber geben und mit Sesam bestreuen."
+    }
+  ],
+  "totalNutritionPerServing": {
+    "kcal": 580,
+    "fat": 22.0,
+    "saturatedFat": 3.0,
+    "carbs": 70.0,
+    "sugar": 10.0,
+    "protein": 26.0,
+    "salt": 3.5
+  }
+}

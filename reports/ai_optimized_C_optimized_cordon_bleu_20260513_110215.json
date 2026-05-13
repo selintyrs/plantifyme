@@ -1,0 +1,145 @@
+{
+  "title": "Cordon Bleu",
+  "description": "Knusprig paniertes Seitan-Cordon-Bleu gefüllt mit Räuchertofu und schmelzendem Cashew-Käse.",
+  "category": "Schweizer Küche",
+  "prepTimeMin": 35,
+  "difficulty": "medium",
+  "servings": 2,
+  "ingredients": [
+    {
+      "name": "Seitan",
+      "amount": 4.0,
+      "unit": "Stk",
+      "type": "B",
+      "matchingDisplayName": "Seitan",
+      "matchingSubcategory": ""
+    },
+    {
+      "name": "Räuchertofu",
+      "amount": 80.0,
+      "unit": "g",
+      "type": "B",
+      "matchingDisplayName": "Tofu",
+      "matchingSubcategory": "Geräuchert"
+    },
+    {
+      "name": "Cashews",
+      "amount": 80.0,
+      "unit": "g",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Hefeflocken",
+      "amount": 2.0,
+      "unit": "EL",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Pflanzenmilch",
+      "amount": 150.0,
+      "unit": "ml",
+      "type": "B",
+      "matchingDisplayName": "Milch",
+      "matchingSubcategory": ""
+    },
+    {
+      "name": "Mehl",
+      "amount": 60.0,
+      "unit": "g",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Paniermehl",
+      "amount": 100.0,
+      "unit": "g",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Senf",
+      "amount": 1.0,
+      "unit": "TL",
+      "type": "B",
+      "matchingDisplayName": "Senf",
+      "matchingSubcategory": ""
+    },
+    {
+      "name": "Rapsöl",
+      "amount": 4.0,
+      "unit": "EL",
+      "type": "B",
+      "matchingDisplayName": "Öl",
+      "matchingSubcategory": "Rapsöl"
+    },
+    {
+      "name": "Zitronen",
+      "amount": 0.5,
+      "unit": "Stk",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Salz",
+      "amount": 1.0,
+      "unit": "TL",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Pfeffer",
+      "amount": 1.0,
+      "unit": "Prise",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    }
+  ],
+  "instructions": [
+    {
+      "step": 1,
+      "text": "Eingeweichte Cashews mit Hefeflocken, Senf, Zitronensaft, Salz und etwas Wasser zu einem dicken Cashew-Käse mixen."
+    },
+    {
+      "step": 2,
+      "text": "Räuchertofu in dünne Scheiben schneiden."
+    },
+    {
+      "step": 3,
+      "text": "Seitan-Stücke aufschneiden wie eine Tasche. Mit Räuchertofu und Cashew-Käse füllen, dann mit Zahnstochern verschliessen."
+    },
+    {
+      "step": 4,
+      "text": "Drei flache Teller bereitstellen: 1) Mehl mit Salz und Pfeffer, 2) Pflanzenmilch, 3) Paniermehl."
+    },
+    {
+      "step": 5,
+      "text": "Gefüllte Seitan-Stücke erst in Mehl, dann in Pflanzenmilch, dann in Paniermehl wenden — gut andrücken."
+    },
+    {
+      "step": 6,
+      "text": "Rapsöl in einer Pfanne erhitzen und Cordon Bleu je Seite 4 Minuten goldbraun braten."
+    },
+    {
+      "step": 7,
+      "text": "Zahnstocher entfernen und mit Zitronenspalte servieren."
+    }
+  ],
+  "totalNutritionPerServing": {
+    "kcal": 580,
+    "fat": 28.0,
+    "saturatedFat": 4.0,
+    "carbs": 38.0,
+    "sugar": 4.0,
+    "protein": 42.0,
+    "salt": 3.0
+  }
+}

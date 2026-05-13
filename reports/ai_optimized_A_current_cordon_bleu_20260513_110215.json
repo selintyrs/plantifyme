@@ -1,0 +1,126 @@
+{
+  "title": "Cordon Bleu",
+  "description": "Knuspriges Schnitzel aus Seitan gefüllt mit Räuchertofu und cremiger Cashew-Sauce. Ein veganer Klassiker der begeistert.",
+  "category": "Hauptgerichte",
+  "prepTimeMin": 45,
+  "difficulty": "medium",
+  "servings": 2,
+  "ingredients": [
+    {
+      "name": "Seitan",
+      "amount": 300,
+      "unit": "g",
+      "type": "B",
+      "matchingDisplayName": "Seitan",
+      "matchingSubcategory": ""
+    },
+    {
+      "name": "Räuchertofu",
+      "amount": 150,
+      "unit": "g",
+      "type": "B",
+      "matchingDisplayName": "Tofu",
+      "matchingSubcategory": "Geräuchert"
+    },
+    {
+      "name": "Cashews",
+      "amount": 80,
+      "unit": "g",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Hefeflocken",
+      "amount": 2,
+      "unit": "EL",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Pflanzenmilch",
+      "amount": 200,
+      "unit": "ml",
+      "type": "B",
+      "matchingDisplayName": "Milch",
+      "matchingSubcategory": "Soja"
+    },
+    {
+      "name": "Mehl",
+      "amount": 100,
+      "unit": "g",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Paniermehl",
+      "amount": 120,
+      "unit": "g",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Senf",
+      "amount": 2,
+      "unit": "TL",
+      "type": "B",
+      "matchingDisplayName": "Senf",
+      "matchingSubcategory": ""
+    },
+    {
+      "name": "Rapsöl",
+      "amount": 100,
+      "unit": "ml",
+      "type": "B",
+      "matchingDisplayName": "Öl",
+      "matchingSubcategory": "Rapsöl"
+    },
+    {
+      "name": "Zitrone",
+      "amount": 1,
+      "unit": "Stk",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Salz",
+      "amount": 1,
+      "unit": "TL",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Pfeffer",
+      "amount": 1,
+      "unit": "Prise",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    }
+  ],
+  "instructions": [
+    { "step": 1, "text": "Cashews 30 Minuten in heissem Wasser einweichen, dann abgiessen." },
+    { "step": 2, "text": "Räuchertofu in dünne Scheiben schneiden." },
+    { "step": 3, "text": "Cashews mit 100ml Pflanzenmilch, Hefeflocken, Senf, Salz und Pfeffer zu einer cremigen Sauce pürieren." },
+    { "step": 4, "text": "Seitan vorsichtig horizontal aufschneiden, aber nicht ganz durchschneiden, sodass eine Tasche entsteht." },
+    { "step": 5, "text": "Die Seitantaschen mit Tofuscheiben und Cashew-Sauce füllen, dann mit Zahnstochern verschliessen." },
+    { "step": 6, "text": "Drei Schalen vorbereiten: Mehl mit Salz und Pfeffer, restliche Pflanzenmilch und Paniermehl." },
+    { "step": 7, "text": "Gefüllten Seitan erst in Mehl, dann in Pflanzenmilch und zuletzt in Paniermehl wenden." },
+    { "step": 8, "text": "Öl in einer Pfanne erhitzen und die panierten Schnitzel von beiden Seiten 4-5 Minuten goldbraun braten." },
+    { "step": 9, "text": "Mit Zitronenspalten servieren und heiss geniessen." }
+  ],
+  "totalNutritionPerServing": {
+    "kcal": 520,
+    "fat": 28.0,
+    "saturatedFat": 4.5,
+    "carbs": 38.0,
+    "sugar": 6.0,
+    "protein": 32.0,
+    "salt": 2.2
+  }
+}

@@ -1,0 +1,129 @@
+{
+  "title": "Brownies",
+  "description": "Saftige, schokoladige Brownies aus Bohnen — überraschend gut und proteinreich.",
+  "category": "Süsses & Desserts",
+  "prepTimeMin": 40,
+  "difficulty": "easy",
+  "servings": 9,
+  "ingredients": [
+    {
+      "name": "Schwarze Bohnen",
+      "amount": 240.0,
+      "unit": "g",
+      "type": "B",
+      "matchingDisplayName": "Hülsenfrüchte",
+      "matchingSubcategory": "Schwarze Bohnen"
+    },
+    {
+      "name": "Haferflocken",
+      "amount": 80.0,
+      "unit": "g",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Kakaopulver",
+      "amount": 6.0,
+      "unit": "EL",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Ahornsirup",
+      "amount": 8.0,
+      "unit": "EL",
+      "type": "B",
+      "matchingDisplayName": "Süssungsmittel",
+      "matchingSubcategory": "Ahornsirup"
+    },
+    {
+      "name": "Pflanzenmilch",
+      "amount": 100.0,
+      "unit": "ml",
+      "type": "B",
+      "matchingDisplayName": "Milch",
+      "matchingSubcategory": ""
+    },
+    {
+      "name": "Kokosöl",
+      "amount": 4.0,
+      "unit": "EL",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Vanilleextrakt",
+      "amount": 1.0,
+      "unit": "TL",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Backpulver",
+      "amount": 1.0,
+      "unit": "TL",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    },
+    {
+      "name": "Dunkle Schokolade",
+      "amount": 80.0,
+      "unit": "g",
+      "type": "B",
+      "matchingDisplayName": "Schokolade",
+      "matchingSubcategory": "Dunkel"
+    },
+    {
+      "name": "Salz",
+      "amount": 1.0,
+      "unit": "Prise",
+      "type": "C",
+      "matchingDisplayName": null,
+      "matchingSubcategory": null
+    }
+  ],
+  "instructions": [
+    {
+      "step": 1,
+      "text": "Ofen auf 180 Grad vorheizen. Eine quadratische Backform (ca. 20x20 cm) mit Backpapier auslegen."
+    },
+    {
+      "step": 2,
+      "text": "Schwarze Bohnen abgiessen und gründlich abspülen."
+    },
+    {
+      "step": 3,
+      "text": "Bohnen, Haferflocken, Kakao, Ahornsirup, Pflanzenmilch, geschmolzenes Kokosöl, Vanilleextrakt, Backpulver und Salz im Mixer zu einem glatten Teig pürieren."
+    },
+    {
+      "step": 4,
+      "text": "Schokolade grob hacken und unter den Teig heben."
+    },
+    {
+      "step": 5,
+      "text": "Teig in die Form geben und glattstreichen. 25-30 Minuten backen, bis die Oberfläche fest ist."
+    },
+    {
+      "step": 6,
+      "text": "Komplett auskühlen lassen, bevor du sie schneidest — sonst zerfallen sie."
+    },
+    {
+      "step": 7,
+      "text": "In 9 Quadrate schneiden und servieren."
+    }
+  ],
+  "totalNutritionPerServing": {
+    "kcal": 220,
+    "fat": 9.0,
+    "saturatedFat": 5.0,
+    "carbs": 30.0,
+    "sugar": 16.0,
+    "protein": 6.0,
+    "salt": 0.3
+  }
+}
