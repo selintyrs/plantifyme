@@ -64,12 +64,16 @@ Nach etwa 12 bis 15 Monaten sinkt die Legeleistung leicht. Da eine weitere Fütt
     id: "honigindustrie",
     category: "Tiere & Ethik",
     title: "Die Honigindustrie: Bienen als Nutztiere",
-    content: `In der Imkerei werden Bienenvölker als landwirtschaftliche Nutztiere gehalten und bewirtschaftet. Um das natürliche Ausschwärmen zu verhindern, werden den Bienenköniginnen häufig die Flügel gestutzt. Krankheiten werden chemisch behandelt, und in bestimmten Betriebsweisen wird der Verlust ganzer Völker einkalkuliert.
+    content: `In der Imkerei werden Bienenvölker als landwirtschaftliche Nutztiere gehalten und intensiv bewirtschaftet. Diese intensive Haltung steht im Zentrum mehrerer ökologischer Probleme, die in den letzten Jahren wissenschaftlich gut dokumentiert wurden [1].
 
-Die Honigbiene ist keine gefährdete Wildart, sondern ein in hoher Dichte gehaltenes Nutztier. Die grossen Kolonien entziehen der Umgebung Nektar und Pollen, was zu einer Nahrungskonkurrenz mit Wildbienen führt. Über die Hälfte der Wildbienenarten stehen bereits auf der Roten Liste.
+Die Honigbiene ist keine gefährdete Wildart, sondern ein in hoher Dichte gehaltenes Nutztier. Die grossen Kolonien entziehen der Umgebung Nektar und Pollen, was zu einer messbaren Nahrungskonkurrenz mit Wildbestäubern führt. Untersuchungen in urbanen Räumen zeigen, dass die Besuchsraten von Wildbienen, Hummeln und anderen Bestäubern mit zunehmender Dichte von Honigbienenkolonien deutlich abnehmen [2]. Eine umfassende Übersichtsarbeit kommt zum Ergebnis, dass in 53 % der untersuchten Studien negative Effekte bewirtschafteter Bienen auf Wildbienen durch Ressourcenkonkurrenz dokumentiert sind [1]. Über die Hälfte der Schweizer Wildbienenarten stehen bereits auf der Roten Liste.
 
-Die intensive Bewirtschaftung und globale Transporte schwächen das Immunsystem der Honigbienen. Dadurch können Krankheitserreger beim Anfliegen derselben Blüten auf die ohnehin bedrohten Wildbienenpopulationen übertragen werden.`,
-    sources: []
+Hinzu kommt das Problem der Krankheitsübertragung. Die intensive Bewirtschaftung und globale Transporte schwächen das Immunsystem der Honigbienen. Studien auf europäischer Ebene zeigen, dass die Viruspräsenz bei Wildbienen positiv mit jener der sympatrischen Honigbienen korreliert ist — Krankheitserreger werden über gemeinsam genutzte Blütenressourcen auf die ohnehin bedrohten Wildbienenpopulationen übertragen [3]. 70 % der zu diesem Thema durchgeführten Studien berichten potenziell negative Effekte auf Wildbienen durch Pathogenübertragung von bewirtschafteten Bienen [1].`,
+    sources: [
+      "Mallinger, R. E., Gaines-Day, H. R., & Gratton, C. (2017). Do managed bees have negative effects on wild bees? A systematic review of the literature. PLOS ONE, 12(12), e0189268.",
+      "Ropars, L., Dajoz, I., Fontaine, C., Muratet, A., & Geslin, B. (2019). Wild pollinator activity negatively related to honey bee colony densities in urban context. PLOS ONE, 14(9), e0222316.",
+      "Piot, N., Schweiger, O., Meeus, I., Yañez, O., Straub, L., et al. (2022). Honey bees and climate explain viral prevalence in wild bee communities on a continental scale. Scientific Reports, 12, 1904."
+    ]
   },
   {
     id: "fische-aquakulturen",
