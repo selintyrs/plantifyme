@@ -17,6 +17,7 @@ describe('recipeCreation store', () => {
             title: '',
             description: '',
             customIngredients: [],
+            excludedIngredients: [],
             baseRecipeId: null
         });
     });
