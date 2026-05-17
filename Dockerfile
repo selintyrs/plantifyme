@@ -39,6 +39,7 @@ WORKDIR /app
 COPY pom.xml ./
 COPY mvnw mvnw.cmd ./
 COPY .mvn .mvn
+RUN chmod +x mvnw
 RUN ./mvnw dependency:go-offline -B
 
 # Source layer — invalidated when source changes
