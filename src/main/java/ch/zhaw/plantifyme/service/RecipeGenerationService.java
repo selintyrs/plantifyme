@@ -173,6 +173,13 @@ public class RecipeGenerationService {
               .append(String.join(", ", request.getCustomIngredients()));
         }
 
+        if (request.getExcludedIngredients() != null && !request.getExcludedIngredients().isEmpty()) {
+            sb.append(". WICHTIG — Folgende Zutaten dürfen UNTER KEINEN UMSTÄNDEN im Rezept vorkommen, ")
+              .append("weder als Hauptzutat noch in Spuren, weder direkt noch als Variante oder Bestandteil ")
+              .append("einer Zutat: ")
+              .append(String.join(", ", request.getExcludedIngredients()));
+        }
+
         RecipePreferences prefs = request.getPreferences();
         if (prefs != null) {
             List<String> prefParts = new ArrayList<>();

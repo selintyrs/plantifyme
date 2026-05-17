@@ -108,6 +108,7 @@
 				title: baseRecipe?.title || null,
 				description: storeData?.description || null,
 				customIngredients: storeData?.customIngredients || [],
+				excludedIngredients: storeData?.excludedIngredients || [],
 				preferences: {
 					prepTimeMax: prepTimeMax !== null ? Number(prepTimeMax) : null,
 					difficulty,
@@ -163,6 +164,7 @@
 
 {#if isGenerating}
 	<div class="generating-overlay">
+		<p class="step-indicator-overlay">Schritt 3 von 3 · Rezept wird erstellt</p>
 		<div class="spinner"></div>
 		<p class="generating-text">Dein Rezept wird erstellt...</p>
 		<p class="generating-sub">Das kann einige Sekunden dauern</p>
@@ -182,6 +184,15 @@
 			{#if recipeName}
 				<p class="recipe-name">{recipeName}</p>
 			{/if}
+		</div>
+	</div>
+
+	<div class="step-indicator-wrapper">
+		<p class="step-indicator">Schritt 2 von 3 · Vorlieben &amp; Anforderungen</p>
+		<div class="step-progress" aria-hidden="true">
+			<span class="step-bar"></span>
+			<span class="step-bar step-bar-active"></span>
+			<span class="step-bar"></span>
 		</div>
 	</div>
 
@@ -457,6 +468,44 @@
 		font-size: 0.8125rem;
 		color: var(--color-text-light);
 		margin: 0;
+	}
+
+	.step-indicator-wrapper {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 10px;
+		padding: 4px 16px 28px;
+	}
+
+	.step-indicator {
+		font-size: 0.95rem;
+		color: var(--color-primary-muted);
+		margin: 0;
+		letter-spacing: 0.02em;
+	}
+
+	.step-progress {
+		display: flex;
+		gap: 8px;
+	}
+
+	.step-bar {
+		width: 32px;
+		height: 4px;
+		border-radius: 2px;
+		background: var(--color-border);
+	}
+
+	.step-bar-active {
+		background: var(--color-primary);
+	}
+
+	.step-indicator-overlay {
+		font-size: 0.95rem;
+		color: var(--color-primary-muted);
+		letter-spacing: 0.02em;
+		margin: 0 0 24px;
 	}
 
 	/* Section label */

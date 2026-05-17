@@ -6,6 +6,6 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import java.util.List;
 
 public interface SavedRecipeRepository extends MongoRepository<SavedRecipe, String> {
-    List<SavedRecipe> findByUserIdAndIsSavedTrue(String userId);
+    List<SavedRecipe> findByUserIdAndIsSavedTrueOrderByCreatedAtDesc(String userId);
     List<SavedRecipe> findByUserId(String userId);
 }

@@ -2,10 +2,13 @@
   --color-primary: #2D7D46;
   --color-primary-hover: #236336;
   --color-primary-light: #eaf5ef;
+  --color-primary-muted: #4a7058;
   --color-bg: #ffffff;
   --color-text: #111827;
   --color-text-light: #6B7280;
   --color-border: #E5E7EB;
+  --color-exclude: #b91c1c;
+  --color-exclude-light: #fef2f2;
 
   --nav-height: 72px;
   --top-bar-height: 56px;

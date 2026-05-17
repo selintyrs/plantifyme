@@ -5,6 +5,8 @@
 	let description = $state('');
 	let customIngredients = $state([]);
 	let ingredientInput = $state('');
+	let excludedIngredients = $state([]);
+	let excludedInput = $state('');
 
 	function addIngredient() {
 		const trimmed = ingredientInput.trim();
@@ -25,11 +27,31 @@
 		}
 	}
 
+	function addExcluded() {
+		const trimmed = excludedInput.trim();
+		if (trimmed && !excludedIngredients.includes(trimmed)) {
+			excludedIngredients = [...excludedIngredients, trimmed];
+			excludedInput = '';
+		}
+	}
+
+	function removeExcluded(index) {
+		excludedIngredients = excludedIngredients.filter((_, i) => i !== index);
+	}
+
+	function handleExcludedKeydown(e) {
+		if (e.key === 'Enter') {
+			e.preventDefault();
+			addExcluded();
+		}
+	}
+
 	function goToAnpassen() {
 		recipeCreationStore.set({
 			title: '',
 			description,
 			customIngredients,
+			excludedIngredients,
 			baseRecipeId: null
 		});
 		goto('/rezepte/anpassen/neu');
@@ -49,22 +71,28 @@
 		<h1>Rezept erstellen</h1>
 	</div>
 
+	<div class="step-indicator-wrapper">
+		<p class="step-indicator">Schritt 1 von 3 · Deine Rezept-Idee</p>
+		<div class="step-progress" aria-hidden="true">
+			<span class="step-bar step-bar-active"></span>
+			<span class="step-bar"></span>
+			<span class="step-bar"></span>
+		</div>
+	</div>
+
 	<div class="content">
-		<!-- Beschreibe dein Rezept -->
+		<!-- Beschreibung -->
 		<section class="section">
-			<h2 class="section-title">Beschreibe dein Rezept</h2>
-			<p class="section-desc">Beschreibe uns, welche Art von Rezept du erstellen möchtest. Du kannst dabei so detailliert oder allgemein beschreiben, wie du möchtest.</p>
 			<textarea
 				class="description-input"
-				placeholder="Zum Beispiel: Ein schnelles, veganes Nudelgericht mit viel Gemüse und einer cremigen Sosse..."
+				placeholder="Beschreibe dein Wunsch-Rezept, z. B. 'schnelles veganes Nudelgericht mit cremiger Sosse'"
 				bind:value={description}
 			></textarea>
 		</section>
 
-		<!-- Spezifiere deine Zutaten -->
+		<!-- Pflichtzutaten -->
 		<section class="section">
-			<h2 class="section-title">Spezifiere deine Zutaten</h2>
-			<p class="section-desc">Spezifiziere die Zutaten, die du in deinem Rezept verwenden möchtest. Dieser Schritt ist optional – füge so viele hinzu, wie du möchtest, oder überspringe es einfach.</p>
+			<h2 class="section-title">Diese Zutaten sollen drin sein (optional)</h2>
 			<div class="ingredient-row">
 				<input
 					class="ingredient-input"
@@ -96,16 +124,61 @@
 				</div>
 			{/if}
 		</section>
+
+		<!-- Ausschluss-Zutaten -->
+		<section class="section">
+			<h2 class="section-title">Diese Zutaten ausschliessen (optional)</h2>
+			<div class="ingredient-row">
+				<input
+					class="ingredient-input"
+					type="text"
+					placeholder="z. B. Tofu, Sojamilch"
+					bind:value={excludedInput}
+					onkeydown={handleExcludedKeydown}
+				/>
+				<button
+					class="add-btn"
+					onclick={addExcluded}
+					disabled={!excludedInput.trim()}
+				>
+					Hinzufügen
+				</button>
+			</div>
+			{#if excludedIngredients.length > 0}
+				<div class="chips">
+					{#each excludedIngredients as ingredient, i}
+						<span class="chip chip-excluded">
+							{ingredient}
+							<button class="chip-remove chip-remove-excluded" onclick={() => removeExcluded(i)} aria-label="Entfernen">
+								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+									<path d="M18 6 6 18M6 6l12 12"/>
+								</svg>
+							</button>
+						</span>
+					{/each}
+				</div>
+			{/if}
+		</section>
 	</div>
 
 	<!-- Bottom Buttons -->
 	<div class="bottom-actions">
-		<button class="btn-cancel" onclick={() => { resetRecipeCreation(); goto('/rezepte'); }}>
-			Abbrechen
-		</button>
-		<button class="btn-proceed" onclick={goToAnpassen} disabled={!canProceed}>
-			Weiter
-		</button>
+		<p class="next-step-hint">
+			<svg class="hint-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+				<circle cx="12" cy="12" r="10"/>
+				<path d="M12 16v-4"/>
+				<path d="M12 8h.01"/>
+			</svg>
+			<span>Nächster Schritt: Allergien, Zeitaufwand, Schwierigkeit</span>
+		</p>
+		<div class="bottom-btn-row">
+			<button class="btn-cancel" onclick={() => { resetRecipeCreation(); goto('/rezepte'); }}>
+				Abbrechen
+			</button>
+			<button class="btn-proceed" onclick={goToAnpassen} disabled={!canProceed}>
+				Weiter
+			</button>
+		</div>
 	</div>
 </div>
 
@@ -147,30 +220,54 @@
 		margin: 0;
 	}
 
+	.step-indicator-wrapper {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 10px;
+		padding: 4px 16px 28px;
+	}
+
+	.step-indicator {
+		font-size: 0.95rem;
+		color: var(--color-primary-muted);
+		margin: 0;
+		letter-spacing: 0.02em;
+	}
+
+	.step-progress {
+		display: flex;
+		gap: 8px;
+	}
+
+	.step-bar {
+		width: 32px;
+		height: 4px;
+		border-radius: 2px;
+		background: var(--color-border);
+	}
+
+	.step-bar-active {
+		background: var(--color-primary);
+	}
+
 	.content {
 		padding: 0 16px;
 		display: flex;
 		flex-direction: column;
-		gap: 28px;
+		gap: 32px;
 	}
 
 	.section {
 		display: flex;
 		flex-direction: column;
-		gap: 8px;
+		gap: 12px;
 	}
 
 	.section-title {
 		font-size: 1.0625rem;
 		font-weight: 700;
 		color: var(--color-text);
-		margin: 0;
-	}
-
-	.section-desc {
-		font-size: 0.875rem;
-		color: var(--color-text-light);
-		line-height: 1.5;
 		margin: 0;
 	}
 
@@ -200,6 +297,7 @@
 
 	.ingredient-input {
 		flex: 1;
+		min-width: 0;
 		border-radius: 14px;
 		border: 1.5px solid var(--color-border);
 		padding: 12px 16px;
@@ -215,9 +313,9 @@
 	}
 
 	.add-btn {
-		background: var(--color-primary);
-		color: white;
-		border: none;
+		background: white;
+		color: var(--color-primary);
+		border: 1.5px solid var(--color-primary);
 		border-radius: 14px;
 		padding: 12px 20px;
 		font-weight: 600;
@@ -225,6 +323,11 @@
 		cursor: pointer;
 		white-space: nowrap;
 		flex-shrink: 0;
+		transition: background 0.12s ease;
+	}
+
+	.add-btn:hover {
+		background: var(--color-primary-light);
 	}
 
 	.add-btn:disabled {
@@ -251,6 +354,11 @@
 		font-weight: 500;
 	}
 
+	.chip-excluded {
+		background: var(--color-exclude-light);
+		color: var(--color-exclude);
+	}
+
 	.chip-remove {
 		background: none;
 		border: none;
@@ -266,14 +374,38 @@
 		opacity: 1;
 	}
 
+	.chip-remove-excluded {
+		color: var(--color-exclude);
+	}
+
 	/* Bottom Actions */
 	.bottom-actions {
 		position: sticky;
 		bottom: 80px;
 		display: flex;
-		gap: 12px;
-		padding: 16px;
+		flex-direction: column;
+		gap: 16px;
+		padding: 16px 16px 28px;
 		background: white;
+	}
+
+	.next-step-hint {
+		font-size: 0.875rem;
+		color: var(--color-text-light);
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
+		margin: 0;
+	}
+
+	.hint-icon {
+		flex-shrink: 0;
+	}
+
+	.bottom-btn-row {
+		display: flex;
+		gap: 12px;
 	}
 
 	.btn-cancel {

@@ -13,6 +13,7 @@ public class RecipeGenerationRequest {
     private String title;
     private String description;
     private List<String> customIngredients;
+    private List<String> excludedIngredients;
     private RecipePreferences preferences;
     private String baseRecipeId;
 }

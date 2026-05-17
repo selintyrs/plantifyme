@@ -203,7 +203,7 @@ class AiComparisonTest {
     private String buildRecipeUserPrompt(RecipeGenerationRequest req, BaseRecipe baseRecipe) {
         // We can't easily instantiate RecipeGenerationService standalone (needs ChatClient.Builder etc.),
         // and Spring AI's autowiring may inject the same instance — but the service's buildUserPrompt
-        // is a pure function. Re-implementing 12 lines here keeps the test self-contained and
+        // is a pure function. Re-implementing here keeps the test self-contained and
         // avoids accidental DB writes when the service tries to persist a SavedRecipe.
         StringBuilder sb = new StringBuilder("Erstelle ein veganes Rezept");
         if (req.getTitle() != null) sb.append(" für: ").append(req.getTitle());
@@ -215,6 +215,16 @@ class AiComparisonTest {
             sb.append(". Basiere auf folgendem Grundrezept und passe es an die Anforderungen an. BEHALTE den Originaltitel bei: ")
               .append(baseRecipe.getTitle())
               .append(". Zutaten: ").append(ingredientNames);
+        }
+        if (req.getCustomIngredients() != null && !req.getCustomIngredients().isEmpty()) {
+            sb.append(". Verwende diese Zutaten: ")
+              .append(String.join(", ", req.getCustomIngredients()));
+        }
+        if (req.getExcludedIngredients() != null && !req.getExcludedIngredients().isEmpty()) {
+            sb.append(". WICHTIG — Folgende Zutaten dürfen UNTER KEINEN UMSTÄNDEN im Rezept vorkommen, ")
+              .append("weder als Hauptzutat noch in Spuren, weder direkt noch als Variante oder Bestandteil ")
+              .append("einer Zutat: ")
+              .append(String.join(", ", req.getExcludedIngredients()));
         }
         return sb.toString();
     }

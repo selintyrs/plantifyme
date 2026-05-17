@@ -18,7 +18,7 @@ public class SavedRecipeService {
     private final SavedRecipeRepository savedRecipeRepository;
 
     public List<SavedRecipe> findByUser(String userId) {
-        return savedRecipeRepository.findByUserIdAndIsSavedTrue(userId);
+        return savedRecipeRepository.findByUserIdAndIsSavedTrueOrderByCreatedAtDesc(userId);
     }
 
     public SavedRecipe findById(String id) {

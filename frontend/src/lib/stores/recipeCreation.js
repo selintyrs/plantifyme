@@ -4,6 +4,7 @@ export const recipeCreationStore = writable({
     title: '',
     description: '',
     customIngredients: [],
+    excludedIngredients: [],
     baseRecipeId: null
 });
 
@@ -12,6 +13,7 @@ export function resetRecipeCreation() {
         title: '',
         description: '',
         customIngredients: [],
+        excludedIngredients: [],
         baseRecipeId: null
     });
 }
