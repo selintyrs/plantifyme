@@ -575,7 +575,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: linear-gradient(150deg, var(--color-primary) 0%, var(--color-primary-hover, #1f5a30) 100%);
+		background: linear-gradient(150deg, var(--color-primary) 0%, var(--color-primary-hover, #236336) 100%);
 		color: #fff;
 	}
 

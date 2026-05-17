@@ -22,7 +22,7 @@
 
 		<div class="phone-frame">
 			<div class="phone-screen">
-				<span class="phone-placeholder-text">App Screenshot</span>
+				<img src="/images/landing/home.jpg" alt="Plantify-Me Home-Screen" class="phone-screen-img" />
 			</div>
 		</div>
 
@@ -102,16 +102,14 @@
 	<section class="section">
 		<h2 class="section-title">Aus deiner Liste wird deine plantified Liste</h2>
 		<div class="transform-row">
-			<div class="mini-phone mini-phone-grey">
-				<span class="mini-phone-label">Normale Liste</span>
-				<span class="mini-phone-placeholder">App Screenshot</span>
+			<div class="mini-phone">
+				<img src="/images/landing/nicht-veganisiert.jpg" alt="Normale Einkaufsliste vor Veganisierung" class="mini-phone-img" />
 			</div>
 			<svg class="transform-arrow" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
 				<path d="m9 18 6-6-6-6"/>
 			</svg>
-			<div class="mini-phone mini-phone-green">
-				<span class="mini-phone-label">Plantified Liste</span>
-				<span class="mini-phone-placeholder">App Screenshot</span>
+			<div class="mini-phone">
+				<img src="/images/landing/veganisiert.jpg" alt="Veganisierte Einkaufsliste mit pflanzlichen Alternativen" class="mini-phone-img" />
 			</div>
 		</div>
 	</section>
@@ -215,19 +213,16 @@
 	}
 
 	.phone-screen {
-		width: 240px;
-		height: 480px;
+		width: 290px;
 		border-radius: 24px;
-		background: var(--color-primary-light);
-		display: flex;
-		align-items: center;
-		justify-content: center;
+		overflow: hidden;
+		display: block;
 	}
 
-	.phone-placeholder-text {
-		font-size: 0.875rem;
-		font-weight: 600;
-		color: var(--color-text-light);
+	.phone-screen-img {
+		width: 100%;
+		height: auto;
+		display: block;
 	}
 
 	.btn-primary {
@@ -371,38 +366,15 @@
 	}
 
 	.mini-phone {
-		width: 130px;
-		height: 240px;
-		border-radius: 20px;
-		padding: 14px 10px;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: space-between;
+		width: 160px;
 		flex-shrink: 0;
+		display: block;
 	}
 
-	.mini-phone-grey {
-		background: #F3F4F6;
-		color: var(--color-text-light);
-	}
-
-	.mini-phone-green {
-		background: var(--color-primary-light);
-		color: var(--color-primary);
-	}
-
-	.mini-phone-label {
-		font-size: 0.75rem;
-		font-weight: 700;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-	}
-
-	.mini-phone-placeholder {
-		font-size: 0.75rem;
-		font-weight: 500;
-		text-align: center;
+	.mini-phone-img {
+		width: 100%;
+		height: auto;
+		display: block;
 	}
 
 	.transform-arrow {

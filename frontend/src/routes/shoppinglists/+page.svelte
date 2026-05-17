@@ -731,37 +731,35 @@
 	.recipe-cards {
 		display: flex;
 		flex-direction: column;
+		gap: 12px;
 	}
 
 	.recipe-card {
 		display: flex;
 		align-items: center;
-		gap: 14px;
+		gap: 12px;
 		width: 100%;
-		padding: 14px 0;
+		padding: 12px 16px;
 		border: none;
-		border-bottom: 1px solid var(--color-border);
-		background: transparent;
+		border-radius: 16px;
+		background: #ffffff;
+		box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07);
 		cursor: pointer;
 		text-align: left;
 	}
 
-	.recipe-card:last-child {
-		border-bottom: none;
-	}
-
 	.recipe-card-img {
-		width: 90px;
-		height: 70px;
-		border-radius: 12px;
+		width: 60px;
+		height: 60px;
+		border-radius: 10px;
 		object-fit: cover;
 		flex-shrink: 0;
 	}
 
 	.recipe-card-img-placeholder {
-		width: 90px;
-		height: 70px;
-		border-radius: 12px;
+		width: 60px;
+		height: 60px;
+		border-radius: 10px;
 		background: var(--color-border);
 		flex-shrink: 0;
 	}
