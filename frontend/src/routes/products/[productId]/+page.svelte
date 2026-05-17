@@ -4,6 +4,7 @@
 	import { matchResults, savedListId, itemIdMap } from '$lib/stores/shoppingList.js';
 	import { dictionaryStore } from '$lib/stores/dictionary.js';
 	import { authFetch } from '$lib/api.js';
+	import { productImageUrl, productImageFallbackUrl } from '$lib/utils/productImage.js';
 
 	let product = $state(null);
 	let genericFood = $state(null);
@@ -229,13 +230,20 @@
 		}
 	}
 
-	function localImageUrl(p) {
-		const sm = p.supermarket?.toLowerCase() ?? 'unknown';
-		return `/images/products/${sm}/${p.articleId}.jpg`;
+	function mainImageSrc() {
+		// Stage 0: primär imageUrl, mit lokalem Fallback wenn imageUrl leer.
+		// Stage 1: explizit lokaler Pfad (nach onerror aus Stage 0).
+		if (imgStage === 0) {
+			return productImageUrl(product) ?? productImageFallbackUrl(product);
+		}
+		return productImageFallbackUrl(product);
 	}
 
 	function handleImgError() {
-		if (imgStage === 0 && product?.imageUrl) {
+		// Stage 0 → Stage 1 nur wenn ein lokaler Fallback überhaupt
+		// existiert UND wir Stage 0 mit imageUrl gestartet sind. Sonst
+		// direkt zum Placeholder.
+		if (imgStage === 0 && productImageUrl(product) && productImageFallbackUrl(product)) {
 			imgStage = 1;
 		} else {
 			imgStage = 2;
@@ -297,14 +305,17 @@
 		setTimeout(() => goto('/liste'), 1500);
 	}
 
-	function altLocalImageUrl(alt) {
-		const sm = alt.supermarket?.toLowerCase() ?? 'unknown';
-		return `/images/products/${sm}/${alt.articleId}.jpg`;
+	function altImageSrc(alt) {
+		const stage = altImgStages[alt.id] ?? 0;
+		if (stage === 0) {
+			return productImageUrl(alt) ?? productImageFallbackUrl(alt);
+		}
+		return productImageFallbackUrl(alt);
 	}
 
 	function handleAltImgError(altId, alt) {
 		const stage = altImgStages[altId] ?? 0;
-		if (stage === 0 && alt.imageUrl) {
+		if (stage === 0 && productImageUrl(alt) && productImageFallbackUrl(alt)) {
 			altImgStages = { ...altImgStages, [altId]: 1 };
 		} else {
 			altImgStages = { ...altImgStages, [altId]: 2 };
@@ -494,9 +505,9 @@
 
 	<!-- Product image -->
 	<div class="image-wrapper">
-		{#if imgStage < 2}
+		{#if imgStage < 2 && mainImageSrc()}
 			<img
-				src={imgStage === 0 ? localImageUrl(product) : product.imageUrl}
+				src={mainImageSrc()}
 				alt={product.name}
 				class="product-img"
 				onerror={handleImgError}
@@ -649,11 +660,12 @@
 				<div class="alternatives-list">
 					{#each alternatives as alt, i (alt.id)}
 						{@const altStage = altImgStages[alt.id] ?? 0}
+						{@const altSrc = altImageSrc(alt)}
 						<div class="alt-card" class:alt-card-last={i === alternatives.length - 1}>
 							<div class="alt-img-wrapper">
-								{#if altStage < 2}
+								{#if altStage < 2 && altSrc}
 									<img
-										src={altStage === 0 ? altLocalImageUrl(alt) : alt.imageUrl}
+										src={altSrc}
 										alt={alt.name}
 										class="alt-img"
 										onerror={() => handleAltImgError(alt.id, alt)}

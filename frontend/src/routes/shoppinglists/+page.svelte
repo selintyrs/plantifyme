@@ -12,6 +12,7 @@
 	import { supermarketStore } from '$lib/stores/supermarket.js';
 	import { dictionaryStore, loadDictionary } from '$lib/stores/dictionary.js';
 	import { authFetch } from '$lib/api.js';
+	import { productImageUrl, productImageFallbackUrl } from '$lib/utils/productImage.js';
 
 	let lists = $state([]);
 	let isLoading = $state(true);
@@ -23,7 +24,24 @@
 	let savedProducts = $state([]);
 	let productsLoaded = $state(false);
 	let pendingDeleteProductId = $state(null);
-	let prodImgErrors = $state({});
+	let prodImgStages = $state({}); // 0 = imageUrl, 1 = lokaler Fallback, 2 = Placeholder
+
+	function savedImageSrc(p) {
+		const stage = prodImgStages[p.id] ?? 0;
+		if (stage === 0) {
+			return productImageUrl(p) ?? productImageFallbackUrl(p);
+		}
+		return productImageFallbackUrl(p);
+	}
+
+	function handleSavedImgError(p) {
+		const stage = prodImgStages[p.id] ?? 0;
+		if (stage === 0 && productImageUrl(p) && productImageFallbackUrl(p)) {
+			prodImgStages = { ...prodImgStages, [p.id]: 1 };
+		} else {
+			prodImgStages = { ...prodImgStages, [p.id]: 2 };
+		}
+	}
 
 	let savedRecipes = $state([]);
 	let pendingDeleteRecipeId = $state(null);
@@ -281,14 +299,16 @@
 		{:else}
 			<div class="prod-cards">
 				{#each savedProducts as p (p.id)}
+					{@const prodStage = prodImgStages[p.id] ?? 0}
+					{@const prodSrc = savedImageSrc(p)}
 					<div class="prod-card" role="button" tabindex="0"
 						onclick={() => { if (pendingDeleteProductId !== p.id) goto(`/products/${p.productId}?type=${p.type}&from=saved`); }}
 						onkeydown={(e) => { if (e.key === 'Enter') goto(`/products/${p.productId}?type=${p.type}&from=saved`); }}>
 						<div class="prod-card-inner">
 							<div class="prod-img-wrapper">
-								{#if !prodImgErrors[p.id] && p.imageUrl}
-									<img src={p.imageUrl} alt={p.name} class="prod-img"
-										onerror={() => { prodImgErrors = { ...prodImgErrors, [p.id]: true }; }} />
+								{#if prodStage < 2 && prodSrc}
+									<img src={prodSrc} alt={p.name} class="prod-img"
+										onerror={() => handleSavedImgError(p)} />
 								{:else}
 									<div class="prod-img-placeholder"></div>
 								{/if}
