@@ -34,12 +34,14 @@ function buildStoreItem(item, id, findUiCategory) {
 		quantity: item.quantity || 1,
 		frontendDictionaryId: null,
 		uiCategory: findUiCategory(item),
+		isChecked: item.isChecked === true,
 	};
 }
 
 function buildMatch(item, id, findUiCategory, extraMatchFields, suggestedProductExtras = {}) {
 	return {
 		itemId: id.toString(),
+		backendItemId: item.itemId || null,
 		type: item.type,
 		displayName: item.displayName || item.name,
 		subcategory: item.subcategory || '',
@@ -51,6 +53,7 @@ function buildMatch(item, id, findUiCategory, extraMatchFields, suggestedProduct
 		genericFood:
 			item.type === 'C' && item.genericFoodId ? { id: item.genericFoodId, name: item.name } : null,
 		diyGroupLabel: item.diyGroupLabel || null,
+		isChecked: item.isChecked === true,
 		...extraMatchFields(item),
 	};
 }

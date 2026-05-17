@@ -308,6 +308,44 @@ public class ShoppingListService {
     }
 
     /**
+     * Toggles the isChecked flag of a single item in a shopping list.
+     * Used by the Erledigt-Sektion in der veganisierten View — verschoben
+     * sich gecheckte Items in einen separaten Bucket am Ende der Liste.
+     *
+     * @throws OwnershipException if userId does not match the list owner
+     */
+    public Optional<ShoppingList> setItemChecked(String listId, String userId, String itemId, boolean isChecked) {
+        Optional<ShoppingList> optionalList = shoppingListRepository.findById(listId);
+        if (optionalList.isEmpty()) {
+            return Optional.empty();
+        }
+
+        ShoppingList list = optionalList.get();
+
+        if (!list.getUserId().equals(userId)) {
+            throw new OwnershipException("User " + userId + " does not own list " + listId);
+        }
+
+        if (list.getItems() == null) {
+            return Optional.empty();
+        }
+
+        ShoppingItem item = list.getItems().stream()
+                .filter(i -> itemId.equals(i.getItemId()))
+                .findFirst()
+                .orElse(null);
+
+        if (item == null) {
+            return Optional.empty();
+        }
+
+        item.setIsChecked(isChecked);
+
+        ShoppingList saved = shoppingListRepository.save(list);
+        return Optional.of(saved);
+    }
+
+    /**
      * Replaces an existing shopping list item with the selected ingredients of a DIY recipe.
      * The original item is removed and one new ShoppingItem is created per selected ingredient
      * (ingredients named "Wasser" are skipped).

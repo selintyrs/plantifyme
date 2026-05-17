@@ -22,6 +22,8 @@
 	import { onMount } from "svelte";
 	import { authFetch } from "$lib/api.js";
 	import { currentUser } from "$lib/stores/user.js";
+	import { crossfade } from "svelte/transition";
+	import { quintOut } from "svelte/easing";
 
 	const ALLERGY_LABELS = {
 		nuts: 'Nüsse',
@@ -114,6 +116,82 @@
 			if (b === 'Sonstiges') return -1;
 			return 0;
 		});
+	}
+
+	// ── Checked-State (nur veganisierte View) ─────────────────────────────────
+	const ERLEDIGT_KEY = '__erledigt__';
+	let checkedItemIds = $state(new Set());
+
+	const [sendCheck, receiveCheck] = crossfade({
+		duration: 350,
+		easing: quintOut,
+		fallback(node) {
+			return { duration: 200, css: (t) => `opacity: ${t}` };
+		},
+	});
+
+	function backendItemIdFor(matchResultItemId) {
+		// matchResults.itemId ist die numerische Frontend-ID. Zwei Quellen für die
+		// Backend-UUID:
+		//   1. matchResult.backendItemId — gesetzt vom Recipe-Takeover-Pfad
+		//      (buildMatch in listOperations.js).
+		//   2. $itemIdMap[matchResultItemId] — gesetzt beim Laden einer gespeicherten
+		//      Liste (loadListIntoStore in shoppinglists/+page.svelte und
+		//      analog im Home-Load).
+		const match = $matchResults.find(r => r.itemId === matchResultItemId);
+		if (match?.backendItemId) return match.backendItemId;
+		return $itemIdMap[matchResultItemId] ?? null;
+	}
+
+	async function toggleChecked(itemId) {
+		isSaved = false;
+		const willBeChecked = !checkedItemIds.has(itemId);
+		if (willBeChecked) checkedItemIds.add(itemId);
+		else checkedItemIds.delete(itemId);
+		checkedItemIds = new Set(checkedItemIds);
+
+		// Backend-Sync nur, wenn die Liste persistiert ist UND eine Backend-UUID
+		// für dieses Item bekannt ist (also nach Load aus /shoppinglists).
+		const backendId = backendItemIdFor(itemId);
+		if ($savedListId && backendId) {
+			try {
+				await authFetch(`/api/shoppinglists/${$savedListId}/items/${backendId}/checked`, {
+					method: 'PATCH',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ isChecked: willBeChecked }),
+				});
+			} catch (e) {
+				console.error('Checked-Sync fehlgeschlagen:', e);
+			}
+		}
+	}
+
+	function splitDoneSection(grouping, checkedSet) {
+		const regular = {};
+		const done = [];
+		for (const [cat, items] of Object.entries(grouping)) {
+			const remaining = [];
+			for (const item of items) {
+				if (checkedSet.has(item.itemId)) done.push(item);
+				else remaining.push(item);
+			}
+			if (remaining.length > 0) regular[cat] = remaining;
+		}
+		const sorted = sortCategoryEntries(regular);
+		if (done.length > 0) sorted.push([ERLEDIGT_KEY, done]);
+		return sorted;
+	}
+
+	let groupedWithDone = $derived(splitDoneSection(matchGrouped, checkedItemIds));
+
+	function hydrateCheckedFromBackend() {
+		// matchResults trägt seit buildMatch (listOperations.js) das isChecked-Feld
+		// aus dem Backend-Item. Wir spiegeln das einmal in den lokalen Set.
+		const initial = new Set();
+		for (const r of $matchResults) {
+			if (r.isChecked) initial.add(r.itemId);
+		}
+		checkedItemIds = initial;
 	}
 
 	function computeImpact(matchResults, shoppingList) {
@@ -209,16 +287,25 @@
 		}));
 	}
 
-	onMount(() => {
+	onMount(async () => {
 		const params = new URLSearchParams(window.location.search);
 		if (params.get('reload') === '1' && $shoppingListStore.length > 0) {
-			plantifyMatch();
+			// Hydrate ZUERST aus den persistierten matchResults (sessionStorage
+			// trägt isChecked aus dem letzten Load). Danach plantifyMatch zur
+			// Preis-/Impact-Aktualisierung — der Re-Match preserviert backendItemId
+			// per itemId-Map, checkedItemIds bleibt unangetastet.
+			hydrateCheckedFromBackend();
+			await plantifyMatch();
 			// Note: deliberately NOT calling history.replaceState here.
 			// Doing so corrupts the back-stack: a user navigating
 			// /shoppinglists → /liste?reload=1 → /products/{id} would, after
 			// pressing back, skip /liste and land on /shoppinglists instead.
 			// The ?reload=1 param staying in the URL is harmless — plantifyMatch
 			// is idempotent on re-mount (e.g. F5).
+		} else if ($savedListId && $isVeganized) {
+			// Home-Load-Pfad: matchResults sind schon befüllt (über
+			// routes/+page.svelte loadList), aber checkedItemIds noch leer.
+			hydrateCheckedFromBackend();
 		}
 	});
 
@@ -250,12 +337,19 @@
 			if (!res.ok) throw new Error(`HTTP ${res.status}`);
 			const data = await res.json();
 			const raw = data.matches || [];
+			// Vor dem Überschreiben: backendItemId pro stabilem itemId mitnehmen,
+			// damit Re-Match-Runs (z.B. nach Liste-Save oder ?reload=1) den
+			// PATCH-Sync auf /items/{itemId}/checked nicht verlieren.
+			const prevBackendIds = new Map(
+				$matchResults.map(r => [r.itemId, r.backendItemId ?? null]),
+			);
 			matchResults.set(raw.map(r => {
 				const original = $shoppingListStore.find(i => i.id.toString() === r.itemId);
 				return {
 					...r,
 					displayName: original?.displayName || r.originalName,
-					uiCategory: original?.uiCategory || 'Sonstiges'
+					uiCategory: original?.uiCategory || 'Sonstiges',
+					backendItemId: prevBackendIds.get(r.itemId) ?? null,
 				};
 			}));
 			isVeganized.set(true);
@@ -310,6 +404,9 @@ if (matches.length > 0) {
 	async function changeSupermarket(newSupermarket) {
 		supermarketStore.set(newSupermarket);
 		supermarketModalOpen = false;
+		// F4: Supermarkt-Wechsel ändert die Produkt-Auswahl fundamental;
+		// bestehende Checked-Marker passen nicht mehr zu den neuen Treffern.
+		checkedItemIds = new Set();
 
 		if (!$savedListId) {
 			await plantifyMatch();
@@ -656,7 +753,7 @@ if (matches.length > 0) {
 				name: r.suggestedProduct?.name ?? r.genericFood?.name ?? r.displayName,
 				price: r.suggestedProduct?.price ?? null,
 				quantity: qty,
-				isChecked: false,
+				isChecked: checkedItemIds.has(r.itemId),
 			};
 		});
 	}
@@ -679,10 +776,18 @@ if (matches.length > 0) {
 			const saved = await res.json();
 			savedListId.set(saved.id);
 			currentListName = saved.name ?? saveListName;
+			const savedItems = saved.items || [];
+			// buildSaveItems iteriert in der gleichen Reihenfolge wie $matchResults
+			// → wir können die Backend-UUIDs per Index zurückspielen, damit
+			// nachfolgende /items/{itemId}/checked-Patches funktionieren.
+			matchResults.update(prev => prev.map((r, idx) => ({
+				...r,
+				backendItemId: savedItems[idx]?.itemId ?? r.backendItemId ?? null,
+			})));
 			const map = {};
-			for (const backendItem of (saved.items || [])) {
-				const localMatch = $matchResults.find(r => r.displayName === backendItem.displayName);
-				if (localMatch) map[localMatch.itemId] = backendItem.itemId;
+			for (let i = 0; i < savedItems.length; i++) {
+				const localMatch = $matchResults[i];
+				if (localMatch) map[localMatch.itemId] = savedItems[i].itemId;
 			}
 			itemIdMap.set(map);
 			saveModalOpen = false;
@@ -814,37 +919,63 @@ if (matches.length > 0) {
 			<!-- ── Veganized View ─────────────────────────────────────────────────── -->
 		{:else if $isVeganized}
 			<div class="item-list">
-				{#each sortCategoryEntries(matchGrouped) as [category, results]}
-					<div class="category-section">
+				{#each groupedWithDone as [category, results] (category)}
+					{@const isDone = category === ERLEDIGT_KEY}
+					<div class="category-section" class:category-section-done={isDone}>
 						<div class="category-header">
-							<svg
-								xmlns="http://www.w3.org/2000/svg"
-								width="14"
-								height="14"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="2"
-								stroke-linecap="round"
-								stroke-linejoin="round"
-							>
-								<path
-									d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"
-								/>
-								<path
-									d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"
-								/>
-							</svg>
-							<span>{category}</span>
+							{#if isDone}
+								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+									<polyline points="20 6 9 17 4 12"/>
+								</svg>
+								<span>Erledigt</span>
+							{:else}
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									width="14"
+									height="14"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
+									<path
+										d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"
+									/>
+									<path
+										d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"
+									/>
+								</svg>
+								<span>{category}</span>
+							{/if}
 						</div>
 
 						{#each results as result (result.itemId)}
 							{@const qty = matchQuantityFor(result.itemId)}
 							{@const itemId = parseInt(result.itemId)}
-							<div class="item-row">
-								<!-- Checkbox placeholder -->
+							{@const isItemChecked = checkedItemIds.has(result.itemId)}
+							<div
+								class="item-row"
+								class:item-checked={isItemChecked}
+								in:receiveCheck={{ key: result.itemId }}
+								out:sendCheck={{ key: result.itemId }}
+							>
 								<div class="item-left">
-									<span class="checkbox-circle"></span>
+									<button
+										type="button"
+										class="checkbox-circle"
+										class:checked={isItemChecked}
+										onclick={() => toggleChecked(result.itemId)}
+										aria-label={isItemChecked ? 'Als nicht erledigt markieren' : 'Als erledigt markieren'}
+										aria-pressed={isItemChecked}
+									>
+										{#if isItemChecked}
+											<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+												<polyline points="20 6 9 17 4 12"/>
+											</svg>
+										{/if}
+									</button>
 									<div class="item-info">
 										{#if result.type === "C" && result.suggestedProduct}
 											<span class="item-name"
@@ -2020,6 +2151,45 @@ if (matches.length > 0) {
 		border-radius: 50%;
 		border: 1.5px solid var(--color-border);
 		flex-shrink: 0;
+		padding: 0;
+		background: transparent;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		color: #ffffff;
+		cursor: pointer;
+		transition: background 0.18s ease, border-color 0.18s ease;
+	}
+
+	.checkbox-circle:active {
+		transform: scale(0.92);
+	}
+
+	.checkbox-circle.checked {
+		background: var(--color-primary);
+		border-color: var(--color-primary);
+	}
+
+	.item-row.item-checked .item-name,
+	.item-row.item-checked .item-plantified,
+	.item-row.item-checked .item-no-match,
+	.item-row.item-checked .item-diy-fallback {
+		text-decoration: line-through;
+	}
+
+	.item-row.item-checked {
+		opacity: 0.55;
+		transition: opacity 0.25s ease;
+	}
+
+	.category-section-done {
+		margin-top: 16px;
+		padding-top: 12px;
+		border-top: 1px dashed var(--color-border);
+	}
+
+	.category-section-done .category-header {
+		color: var(--color-text-light);
 	}
 
 	.chevron-btn {

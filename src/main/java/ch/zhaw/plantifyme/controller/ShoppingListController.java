@@ -6,6 +6,7 @@ import ch.zhaw.plantifyme.model.dto.AddRecipeIngredientsRequest;
 import ch.zhaw.plantifyme.model.dto.CreateListFromRecipeRequest;
 import ch.zhaw.plantifyme.model.dto.ReplaceItemRequest;
 import ch.zhaw.plantifyme.model.dto.ReplaceWithDiyRequest;
+import ch.zhaw.plantifyme.model.dto.SetItemCheckedRequest;
 import ch.zhaw.plantifyme.model.dto.SupermarketChangeRequest;
 import ch.zhaw.plantifyme.repository.ShoppingListRepository;
 import ch.zhaw.plantifyme.service.OwnershipException;
@@ -243,6 +244,30 @@ public class ShoppingListController {
         String userId = AuthUtil.requireCurrentUserId();
         try {
             return shoppingListService.replaceItem(listId, userId, itemId, request.getProductId())
+                    .map(ResponseEntity::ok)
+                    .orElse(ResponseEntity.notFound().build());
+        } catch (OwnershipException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    @Operation(
+            summary = "Item als erledigt markieren",
+            description = "Setzt das isChecked-Flag eines einzelnen Items. Aktiviert die Verschiebung in die Erledigt-Sektion in der veganisierten View."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "isChecked-Flag aktualisiert"),
+            @ApiResponse(responseCode = "403", description = "Liste gehört einem anderen User"),
+            @ApiResponse(responseCode = "404", description = "Liste oder Item nicht gefunden")
+    })
+    @PatchMapping("/shoppinglists/{listId}/items/{itemId}/checked")
+    public ResponseEntity<ShoppingList> setItemChecked(
+            @PathVariable String listId,
+            @PathVariable String itemId,
+            @RequestBody SetItemCheckedRequest request) {
+        String userId = AuthUtil.requireCurrentUserId();
+        try {
+            return shoppingListService.setItemChecked(listId, userId, itemId, request.isChecked())
                     .map(ResponseEntity::ok)
                     .orElse(ResponseEntity.notFound().build());
         } catch (OwnershipException e) {

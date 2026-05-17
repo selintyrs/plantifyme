@@ -76,7 +76,8 @@ export function addItem(entry, subcategory = '') {
 				subcategory,
 				quantity: 1,
 				frontendDictionaryId: entry.id,
-				uiCategory: entry.uiCategory ?? 'Sonstiges'
+				uiCategory: entry.uiCategory ?? 'Sonstiges',
+				isChecked: false
 			}
 		];
 	});
