@@ -1,5 +1,6 @@
 <script>
 	import { goto } from '$app/navigation';
+	import PwaInstallBanner from '$lib/components/PwaInstallBanner.svelte';
 </script>
 
 <div class="page">
@@ -17,7 +18,7 @@
 
 		<h1 class="hero-title">Veganer einkaufen war nie einfacher</h1>
 		<p class="hero-sub">
-			Finde pflanzliche Alternativen in Migros, Coop und Aldi — und koche inspiriert.
+			Finde pflanzliche Alternativen in Migros, Coop und Aldi und koche inspiriert.
 		</p>
 
 		<div class="phone-frame">
@@ -43,7 +44,7 @@
 				</div>
 				<div class="feature-text">
 					<span class="feature-title">Einkaufsliste veganisieren</span>
-					<span class="feature-sub">Füge deine Produkte hinzu, wir zeigen dir pflanzliche Alternativen.</span>
+					<span class="feature-sub">Füge deine Produkte hinzu und wir zeigen dir pflanzliche Alternativen.</span>
 				</div>
 			</div>
 
@@ -56,7 +57,7 @@
 				</div>
 				<div class="feature-text">
 					<span class="feature-title">KI-gestützte Rezepte</span>
-					<span class="feature-sub">Lass dir personalisierte Rezepte erstellen oder wähle aus 40+ Vorlagen.</span>
+					<span class="feature-sub">Lass dir personalisierte Rezepte erstellen oder wähle aus 60+ Vorlagen.</span>
 				</div>
 			</div>
 
@@ -100,7 +101,7 @@
 
 	<!-- 4. Visual transformation ─────────────────────────────────────────── -->
 	<section class="section">
-		<h2 class="section-title">Aus deiner Liste wird deine plantified Liste</h2>
+		<h2 class="section-title">Aus deiner normalen Einkaufsliste zu einer plantified Einkaufsliste</h2>
 		<div class="transform-row">
 			<div class="mini-phone">
 				<img src="/images/landing/nicht-veganisiert.jpg" alt="Normale Einkaufsliste vor Veganisierung" class="mini-phone-img" />
@@ -143,6 +144,8 @@
 		<span class="copyright">© 2026 Plantify-Me</span>
 	</footer>
 </div>
+
+<PwaInstallBanner />
 
 <style>
 	.page {
