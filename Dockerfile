@@ -5,13 +5,23 @@
 # Stage 2: Backend (Spring Boot) build → fat JAR (incl. frontend assets)
 # Stage 3: Slim JRE-Alpine runtime
 
+# ─── Global ARGs ─────────────────────────────────────────────────────────────
+# Declared BEFORE the first FROM so platforms like Render, which pass
+# build-args at the top of the Dockerfile, see them. Each stage that
+# actually uses one must redeclare it (Docker ARG scoping).
+ARG PUBLIC_AUTH0_DOMAIN
+ARG PUBLIC_AUTH0_CLIENT_ID
+ARG PUBLIC_AUTH0_AUDIENCE
+
+
 # ─── Stage 1: Frontend ───────────────────────────────────────────────────────
 FROM node:20-slim AS frontend-build
 
 WORKDIR /app/frontend
 
-# Build-time env for SvelteKit's $env/static/public — must be present
-# BEFORE `npm run build` so the values are baked into the bundle.
+# Re-declare the globals so they are in scope for this stage,
+# then expose as ENV so SvelteKit's $env/static/public picks them up
+# during `npm run build`.
 ARG PUBLIC_AUTH0_DOMAIN
 ARG PUBLIC_AUTH0_CLIENT_ID
 ARG PUBLIC_AUTH0_AUDIENCE
