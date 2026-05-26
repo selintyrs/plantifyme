@@ -46,3 +46,6 @@ frontend/static/images/products/
 
 ### Coverage / analysis report outputs (generated CSVs) ###
 reports/*.csv
+
+### Final report bundle for BA appendix (separate ZIP submission) ###
+reports_final/
